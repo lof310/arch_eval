@@ -1,0 +1,74 @@
+# Arch Eval Library Documentation
+
+```{toctree}
+:maxdepth: 2
+:caption: Getting Started
+
+quickstart
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: API Reference
+
+api
+```
+
+```{toctree}
+:maxdepth: 2
+:caption: Usage Examples
+
+examples
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Project Info
+
+contributing
+```
+
+## Overview
+
+High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning Models.
+It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
+
+## Features
+- **Unified Training Interface**: Train single models with easy to use configuration options.
+- **Multi-Model Benchmarking**: Compare multiple Architectures sequentially or in parallel (thread/process-based).
+- **Distributed Training**: Built-in support for DataParallel, DistributedDataParallel (DDP), and FSDP.
+- **Advanced Mixed Precision**: AMP with float16, bfloat16, and experimental FP8 support.
+- **Gradient Checkpointing**: Reduce memory footprint for large models.
+- **Rich Visualization**: Real-time training windows, video recording of metrics, and publication‑ready plots.
+- **Logging**: DirectIntegration with Weights & Biases.
+- **Hyperparameter Optimization**: Grid search and random search out of the box.
+- **Extensible Plugin System**: Custom hooks and callbacks for maximum flexibility.
+- **Robust Data Handling**: Supports PyTorch Datasets, synthetic data, torchvision datasets, Hugging Face datasets, and streaming.
+- **Production-Ready**: Configurable timeouts, retry logic and deterministic execution.
+
+## Installation
+
+Install from the GitHub repository:
+
+```bash
+# Clone the repository
+git clone --depth=1 https://github.com/lof310/arch_eval.git
+cd arch_eval
+
+# Install in development mode (recommended)
+pip install -e .
+
+# Install normally
+pip install .
+```
+
+Or Install directly with pip
+```bash
+pip install arch_eval
+```
+
+## Indices and tables
+
+- {ref}`genindex`
+- {ref}`modindex`
+- {ref}`search`

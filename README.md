@@ -1,40 +1,45 @@
-# arch_eval
+# arch_eval library
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.9+-ee4c2c.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-lof310%2Farch__eval-blue)](https://github.com/lof310/arch_eval)
 
-**arch_eval** is a high-level library for efficient architecture evaluation of machine learning models. It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
+**arch_eval** is a High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning models. It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
 
 ## Features
 
-- **Unified Training Interface** – Train single models with comprehensive configuration options.
-- **Multi-Model Benchmarking** – Compare multiple architectures sequentially or in parallel (thread/process-based).
-- **Distributed Training** – Built-in support for DataParallel, DistributedDataParallel (DDP), and FSDP.
-- **Advanced Mixed Precision** – AMP with float16, bfloat16, and experimental FP8 support.
-- **Gradient Checkpointing** – Reduce memory footprint for large models.
-- **Rich Visualization** – Real-time training windows, video recording of metrics, and publication‑ready plots.
-- **Comprehensive Logging** – Integration with Weights & Biases and TensorBoard.
-- **Hyperparameter Optimization** – Grid search and random search out of the box.
-- **Extensible Plugin System** – Custom hooks and callbacks for maximum flexibility.
-- **Robust Data Handling** – Supports PyTorch Datasets, synthetic data, torchvision datasets, Hugging Face datasets, and streaming.
-- **Production-Ready** – Configurable timeouts, retry logic, checkpointing with corruption protection, and deterministic execution.
+- **Unified Training Interface**: Train single models with easy to use configuration options.
+- **Multi-Model Benchmarking**: Compare multiple Architectures sequentially or in parallel (thread/process-based).
+- **Distributed Training**: Built-in support for DataParallel, DistributedDataParallel (DDP), and FSDP.
+- **Advanced Mixed Precision**: AMP with float16, bfloat16, and experimental FP8 support.
+- **Gradient Checkpointing**: Reduce memory footprint for large models.
+- **Rich Visualization**: Real-time training windows, video recording of metrics, and publication‑ready plots.
+- **Logging**: DirectIntegration with Weights & Biases.
+- **Hyperparameter Optimization**: Grid search and random search out of the box.
+- **Extensible Plugin System**: Custom hooks and callbacks for maximum flexibility.
+- **Robust Data Handling**: Supports PyTorch Datasets, synthetic data, torchvision datasets, Hugging Face datasets, and streaming.
+- **Production-Ready**: Configurable timeouts, retry logic and deterministic execution.
 
 ## Installation
 
-Install directly from the GitHub repository:
+Install from the GitHub repository:
 
 ```bash
 # Clone the repository
-git clone https://github.com/lof310/arch_eval.git
+git clone --depth=1 https://github.com/lof310/arch_eval.git
 cd arch_eval
 
 # Install in development mode (recommended)
 pip install -e .
 
-# Or install normally
+# Install normally
 pip install .
+```
+
+Or Install directly with pip
+```bash
+pip install arch_eval
 ```
 
 ## Quick Start
@@ -45,28 +50,42 @@ pip install .
 import torch.nn as nn
 from arch_eval import Trainer, TrainingConfig
 
+# Define a global configuration
+# Dataset
+n_samples, n_features, n_classes = 5000, 128, 64
+
+# Model
+input_size, hidden = n_features, n_features*2
+
+# Training
+batch_size, num_epochs = 16, 4
+
 # Define a simple model
-class SimpleMLP(nn.Module):
-    def __init__(self, input_size=10, hidden=20, num_classes=2):
+class MLP(nn.Module):
+    def __init__(self, input_size=128, hidden=256, num_classes=64):
         super().__init__()
-        self.fc1 = nn.Linear(input_size, hidden)
-        self.fc2 = nn.Linear(hidden, num_classes)
-        self.relu = nn.ReLU()
+
+        self.net = nn.Sequential(
+            nn.Linear(input_size, hidden),
+            nn.GELU(),
+            nn.Linear(hidden, num_classes),
+            nn.Softmax(dim=-1)
+        )
 
     def forward(self, x):
-        return self.relu(self.fc1(x))
+        return self.net(x)
 
 # Configure training
 config = TrainingConfig(
     dataset="synthetic classification",
-    dataset_params={"n_samples": 1000, "n_features": 10, "n_classes": 2},
-    training_args={"num_epochs": 5, "batch_size": 32},
+    dataset_params={"n_samples": n_samples, "n_features": n_features, "n_classes": n_classes},
+    training_args={"num_epochs": num_epochs, "batch_size": batch_size},
     task="classification",
     realtime=True,
     save_plot=["loss", "accuracy"]
 )
 
-model = SimpleMLP()
+model = MLP(input_size, hidden, n_classes)
 trainer = Trainer(model, config)
 history = trainer.train()
 ```
@@ -77,13 +96,13 @@ history = trainer.train()
 from arch_eval import Benchmark, BenchmarkConfig
 
 models = [
-    {"name": "Small MLP", "model": SimpleMLP(hidden=10)},
-    {"name": "Large MLP", "model": SimpleMLP(hidden=50)}
+    {"name": "Small MLP", "model": MLP(hidden=256)},
+    {"name": "Large MLP", "model": MLP(hidden=512)}
 ]
 
 config = BenchmarkConfig(
     dataset="synthetic classification",
-    dataset_params={"n_samples": 500, "n_features": 10, "n_classes": 2},
+    dataset_params={"n_samples": 10000, "n_features": 128, "n_classes": 64},
     compare_metrics=["accuracy", "loss"],
     parallel=True
 )
@@ -99,11 +118,11 @@ print(results)
 from arch_eval import HyperparameterOptimizer
 
 def model_fn():
-    return SimpleMLP()
+    return MLP()
 
 base_config = TrainingConfig(
     dataset="synthetic classification",
-    dataset_params={"n_samples": 500, "n_features": 10, "n_classes": 2},
+    dataset_params={"n_samples": 1000, "n_features": 128, "n_classes": 64},
     training_args={"num_epochs": 3},
     task="classification",
     realtime=False  # disable live plots during search
@@ -123,7 +142,7 @@ results = optimizer.run()
 
 ## Documentation
 
-Documentation is under development. For now, please refer to the example scripts in the `examples/` directory and the in-code docstrings.
+Documentation is under development.
 
 ## Contributing
 
