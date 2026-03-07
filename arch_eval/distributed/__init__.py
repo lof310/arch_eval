@@ -1,18 +1,22 @@
 """Distributed training utilities."""
 
-import torch
-import torch.distributed as dist
 import os
 from typing import Optional
-from arch_eval.core.exceptions import DistributedError, ConfigurationError
+
+import torch
+import torch.distributed as dist
+
 from arch_eval.core.config import DistributedBackend
+from arch_eval.core.exceptions import ConfigurationError, DistributedError
 
 
-def init_distributed(backend: str = "nccl",
-                     world_size: int = 1,
-                     rank: int = 0,
-                     master_addr: str = "127.0.0.1",
-                     master_port: str = "29500"):
+def init_distributed(
+    backend: str = "nccl",
+    world_size: int = 1,
+    rank: int = 0,
+    master_addr: str = "127.0.0.1",
+    master_port: str = "29500",
+):
     """Initialize the distributed process group."""
     os.environ["MASTER_ADDR"] = master_addr
     os.environ["MASTER_PORT"] = master_port
@@ -34,11 +38,13 @@ def get_wrapped_model(model, config):
         return torch.nn.DataParallel(model)
     elif config.distributed_backend == DistributedBackend.DISTRIBUTED:
         from torch.nn.parallel import DistributedDataParallel
+
         return DistributedDataParallel(model, device_ids=[config.distributed_rank])
     elif config.distributed_backend == DistributedBackend.FSDP:
         try:
             from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
             from torch.distributed.fsdp import ShardingStrategy
+
             # básico :)
             return FSDP(model, sharding_strategy=ShardingStrategy.FULL_SHARD)
         except ImportError:

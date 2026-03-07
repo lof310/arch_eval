@@ -2,13 +2,14 @@
 
 import importlib
 import inspect
+import logging
 import pkgutil
 import sys
-from typing import Dict, List, Any, Callable, Optional
-from dataclasses import dataclass
-from arch_eval.core.exceptions import PluginError, StopTraining
-import logging
 import traceback
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional
+
+from arch_eval.core.exceptions import PluginError, StopTraining
 
 logger = logging.getLogger(__name__)
 
@@ -26,21 +27,35 @@ class PluginManager:
 
     HOOKS = {
         "before_training": HookSpec("before_training", "Called before training starts", ["trainer", "config"], None),
-        "after_batch": HookSpec("after_batch", "Called after each batch", ["trainer", "batch_idx", "outputs", "loss"], "dict"),
+        "after_batch": HookSpec(
+            "after_batch", "Called after each batch", ["trainer", "batch_idx", "outputs", "loss"], "dict"
+        ),
         "after_epoch": HookSpec("after_epoch", "Called after each epoch", ["trainer", "epoch", "metrics"], "dict"),
         "before_eval": HookSpec("before_eval", "Called before evaluation", ["trainer", "split"], None),
-        "after_training": HookSpec("after_training", "Called after training completes", ["trainer", "final_metrics"], None),
+        "after_training": HookSpec(
+            "after_training", "Called after training completes", ["trainer", "final_metrics"], None
+        ),
         "on_log": HookSpec("on_log", "Called during logging", ["trainer", "metrics", "step"], None),
         "on_exception": HookSpec("on_exception", "Called when exception occurs", ["trainer", "exception"], None),
-        "on_checkpoint": HookSpec("on_checkpoint", "Called when saving a checkpoint", ["trainer", "checkpoint_path", "is_best"], None),
+        "on_checkpoint": HookSpec(
+            "on_checkpoint", "Called when saving a checkpoint", ["trainer", "checkpoint_path", "is_best"], None
+        ),
         "on_train_start": HookSpec("on_train_start", "Called at the very beginning of training", ["trainer"], None),
         "on_train_end": HookSpec("on_train_end", "Called at the very end of training", ["trainer"], None),
         "on_epoch_start": HookSpec("on_epoch_start", "Called at the start of each epoch", ["trainer", "epoch"], None),
-        "on_epoch_end": HookSpec("on_epoch_end", "Called at the end of each epoch", ["trainer", "epoch", "metrics"], None),
-        "on_batch_start": HookSpec("on_batch_start", "Called before processing a batch", ["trainer", "batch_idx", "data", "targets"], None),
-        "on_batch_end": HookSpec("on_batch_end", "Called after processing a batch", ["trainer", "batch_idx", "loss"], None),
+        "on_epoch_end": HookSpec(
+            "on_epoch_end", "Called at the end of each epoch", ["trainer", "epoch", "metrics"], None
+        ),
+        "on_batch_start": HookSpec(
+            "on_batch_start", "Called before processing a batch", ["trainer", "batch_idx", "data", "targets"], None
+        ),
+        "on_batch_end": HookSpec(
+            "on_batch_end", "Called after processing a batch", ["trainer", "batch_idx", "loss"], None
+        ),
         "on_validation_start": HookSpec("on_validation_start", "Called before validation loop", ["trainer"], None),
-        "on_validation_end": HookSpec("on_validation_end", "Called after validation loop", ["trainer", "metrics"], None),
+        "on_validation_end": HookSpec(
+            "on_validation_end", "Called after validation loop", ["trainer", "metrics"], None
+        ),
         "on_backward": HookSpec("on_backward", "Called after loss.backward()", ["trainer", "loss"], None),
         "on_optimizer_step": HookSpec("on_optimizer_step", "Called after optimizer step", ["trainer"], None),
     }
@@ -74,7 +89,12 @@ class PluginManager:
                 if hook_name in self.HOOKS:
                     hooks[hook_name] = obj
         if hooks:
-            self.global_plugins[plugin_name] = {"name": plugin_name, "version": version, "module": module, "hooks": hooks}
+            self.global_plugins[plugin_name] = {
+                "name": plugin_name,
+                "version": version,
+                "module": module,
+                "hooks": hooks,
+            }
             for hname, func in hooks.items():
                 self.global_hooks[hname].append(func)
             logger.debug(f"Loaded global plugin: {plugin_name} v{version}")
@@ -101,12 +121,16 @@ class PluginManager:
         return results
 
     def get_plugins(self) -> Dict[str, Any]:
-        return {name: {"version": p["version"], "hooks": list(p["hooks"].keys())} for name, p in self.global_plugins.items()}
+        return {
+            name: {"version": p["version"], "hooks": list(p["hooks"].keys())} for name, p in self.global_plugins.items()
+        }
 
 
 def hook(hook_name: str):
     """Decorator to mark a function as a plugin hook."""
+
     def deco(func):
         func._hook_name = hook_name
         return func
+
     return deco

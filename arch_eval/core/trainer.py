@@ -1,37 +1,44 @@
 """Main Trainer class for single model training."""
 
+import logging
+import os
+import time
+from collections import defaultdict
+from contextlib import AbstractContextManager
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
-from typing import Optional, Dict, Any, List, Tuple, Union
-import time
-import numpy as np
-import os
 import wandb
-import logging
-from contextlib import AbstractContextManager
-from collections import defaultdict
-from arch_eval.core.config import TrainingConfig, DistributedBackend, MixedPrecisionDtype
-from arch_eval.core.exceptions import ModelError, ConfigurationError, StopTraining, DistributedError
+from torch.utils.data import DataLoader
+
+from arch_eval.core.config import DistributedBackend, MixedPrecisionDtype, TrainingConfig
+from arch_eval.core.exceptions import ConfigurationError, DistributedError, ModelError, StopTraining
 from arch_eval.data.data import DatasetHandler
-from arch_eval.metrics.calculator import MetricCalculator
-from arch_eval.viz.viz import RealtimeWindow, VideoRecorder, PlotSaver
+from arch_eval.distributed import cleanup_distributed, get_wrapped_model, init_distributed
 from arch_eval.logging.logger_config import LoggerAdapter
+from arch_eval.metrics.calculator import MetricCalculator
 from arch_eval.plugins.manager import PluginManager, hook
-from arch_eval.utils.device import memory_summary
-from arch_eval.distributed import init_distributed, cleanup_distributed, get_wrapped_model
 from arch_eval.profiler import profiler_context
+from arch_eval.utils.device import memory_summary
+from arch_eval.viz.viz import PlotSaver, RealtimeWindow, VideoRecorder
 
 logger = logging.getLogger(__name__)
 
+
 class NullContext(AbstractContextManager):
-    """Context manager that does nothing, compatible with autocast parameters."""
+    """Context manager that does nothing"""
+
     def __init__(self, *args, **kwargs):
         pass
+
     def __enter__(self):
         return self
+
     def __exit__(self, *args):
         pass
+
 
 class Trainer:
     """Main training class for single model."""
@@ -48,7 +55,7 @@ class Trainer:
                 world_size=config.distributed_world_size,
                 rank=config.distributed_rank,
                 master_addr=config.distributed_master_addr,
-                master_port=config.distributed_master_port
+                master_port=config.distributed_master_port,
             )
             self.model = get_wrapped_model(model, config)
         else:
@@ -74,7 +81,7 @@ class Trainer:
         self.amp_dtype = self._get_amp_dtype()
         self.scaler = torch.cuda.amp.GradScaler() if self.use_amp and config.grad_scaler else None
 
-        # Gradient checkpointing
+        # Gradient checkpointing (experimental) TODO
         if config.gradient_checkpointing:
             self._apply_gradient_checkpointing()
 
@@ -83,7 +90,7 @@ class Trainer:
         if config.realtime:
             try:
                 self.window = RealtimeWindow(config)
-                if getattr(self.window, 'disabled', False):
+                if getattr(self.window, "disabled", False):
                     self.window = None
             except Exception as e:
                 self.logger.warning(f"Failed to initialize realtime window: {e}")
@@ -94,13 +101,6 @@ class Trainer:
         # External loggers
         if config.log_to_wandb:
             wandb.init(project=config.wandb_project, name=config.wandb_run_name, config=config.training_args)
-        if config.log_to_tensorboard:
-            try:
-                from torch.utils.tensorboard import SummaryWriter
-                self.tb_writer = SummaryWriter(config.tensorboard_dir)
-            except ImportError:
-                logger.warning("TensorBoard not installed.")
-                self.tb_writer = None
 
         self.plugin_manager = PluginManager()
         for cb in config.callbacks:
@@ -130,22 +130,25 @@ class Trainer:
         elif self.config.mixed_precision_dtype == MixedPrecisionDtype.BFLOAT16:
             return torch.bfloat16
         elif self.config.mixed_precision_dtype == MixedPrecisionDtype.FP8:
-            return torch.float8_e4m3fn if hasattr(torch, 'float8_e4m3fn') else torch.float16
+            return torch.float8_e4m3fn if hasattr(torch, "float8_e4m3fn") else torch.float16
         else:
             return torch.float16
 
     def _apply_gradient_checkpointing(self):
-        """Aplica checkpointing a los módulos especificados."""
+        """Experimental: attempts to enable gradient checkpointing on specified modules.
+        This is not a standard PyTorch feature; models must implement it internally.
+        The current implementation sets a '_gradient_checkpointing' attribute on modules,
+        which may be used by custom layers. For most models, this will have no effect."""
         if self.config.gradient_checkpointing_modules:
             for name in self.config.gradient_checkpointing_modules:
                 module = dict(self.model.named_modules()).get(name)
                 if module:
-                    module.apply(lambda m: setattr(m, 'gradient_checkpointing', True))
+                    module._gradient_checkpointing = True
         else:
-            # Intenta aplicar a cualquier módulo que tenga el atributo
             for module in self.model.modules():
-                if hasattr(module, 'gradient_checkpointing'):
-                    module.gradient_checkpointing = True
+                if hasattr(module, "_gradient_checkpointing"):
+                    module._gradient_checkpointing = True
+        self.logger.warning("Gradient checkpointing is experimental and may not work as expected.")
 
     def _validate_model(self):
         shape = self.config.input_shape or (1, 10)
@@ -193,16 +196,21 @@ class Trainer:
                 sch = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max, **sch_cfg)
             elif sch_type == "reduce_on_plateau":
                 sch = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    opt, mode=sch_cfg.pop("mode", "min"), factor=sch_cfg.pop("factor", 0.1),
-                    patience=sch_cfg.pop("patience", 10), **sch_cfg
+                    opt,
+                    mode=sch_cfg.pop("mode", "min"),
+                    factor=sch_cfg.pop("factor", 0.1),
+                    patience=sch_cfg.pop("patience", 10),
+                    **sch_cfg,
                 )
             else:
                 raise ConfigurationError(f"Unsupported scheduler: {sch_type}")
-            self.schedulers.append({
-                "scheduler": sch,
-                "interval": sch_cfg.get("interval", self.config.scheduler_interval),
-                "monitor": sch_cfg.get("monitor", "val_loss") if sch_type == "reduce_on_plateau" else None,
-            })
+            self.schedulers.append(
+                {
+                    "scheduler": sch,
+                    "interval": sch_cfg.get("interval", self.config.scheduler_interval),
+                    "monitor": sch_cfg.get("monitor", "val_loss") if sch_type == "reduce_on_plateau" else None,
+                }
+            )
 
     def _setup_loss_function(self):
         if self.config.loss_function:
@@ -223,11 +231,11 @@ class Trainer:
 
     def _compute_loss(self, output, targets):
         if isinstance(output, tuple) and len(output) == 2:
-            outputs, loss = output
-            return loss
+            return output[1] # Assume second element is loss
         else:
             return self.criterion(output, targets)
 
+    @auto_device
     def train(self) -> Dict[str, List[float]]:
         self.logger.info("Starting training")
         try:
@@ -298,6 +306,7 @@ class Trainer:
         self.logger.info("Training completed")
         return self._get_history_dict()
 
+    @auto_device
     def _train_epoch(self) -> Dict[str, float]:
         self.model.train()
         total_loss = 0.0
@@ -325,6 +334,7 @@ class Trainer:
             else:
                 loss.backward()
 
+#            self.plugin_manager.execute_hook("on_backward", self, loss.item() * self.accumulation_steps) # FIXME: Possible Overhead
             self.current_accum_step += 1
 
             if self.current_accum_step % self.accumulation_steps == 0:
@@ -347,7 +357,7 @@ class Trainer:
 
                 self.plugin_manager.execute_hook("on_optimizer_step", self)
 
-            # Actualizar métricas sin almacenar todos los outputs
+            # Update metrics without storing all outputs
             with torch.no_grad():
                 batch_metrics = self.metric_calculator.calculate_batch_metrics(
                     output, targets, loss.item() * self.accumulation_steps, "train"
@@ -361,7 +371,7 @@ class Trainer:
             self._step_schedulers({"train_loss": loss.item() * self.accumulation_steps}, interval="step")
 
             if self.global_step % self.config.viz_interval == 0:
-                avg_metrics = {k: v/count for k, v in metric_accum.items()}
+                avg_metrics = {k: v / count for k, v in metric_accum.items()}
                 if self.window:
                     self.window.update(avg_metrics)
                 if self.video_recorder:
@@ -369,10 +379,13 @@ class Trainer:
 
             self.plugin_manager.execute_hook("on_batch_end", self, batch_idx, loss.item() * self.accumulation_steps)
 
+            # Memory cleanup
+            if self.global_step % self.config.gc_collect_interval == 0:
+                torch.cuda.empty_cache() if torch.cuda.is_available() else None
+
             del output, loss, data, targets
 
-        metrics = {k: v / count for k, v in metric_accum.items()}
-        return metrics
+        return {k: v / count for k, v in metric_accum.items()}
 
     def _validate_epoch(self) -> Dict[str, float]:
         return self._evaluate(self.val_loader, "val")
@@ -385,6 +398,10 @@ class Trainer:
         metric_accum = defaultdict(float)
         count = 0
         autocast = torch.cuda.amp.autocast if self.use_amp else NullContext
+
+        # Reset confusion matrix accumulator if needed
+        if self.config.log_confusion_matrix and split == "val":
+            self.metric_calculator.reset_confusion_matrix()
 
         self.plugin_manager.execute_hook("before_eval", self, split)
         self.plugin_manager.execute_hook("on_validation_start", self)
@@ -404,10 +421,27 @@ class Trainer:
                 for k, v in batch_metrics.items():
                     metric_accum[k] += v
                 count += 1
-                del output, loss, data, targets
+
+                # Accumulate for confusion matrix
+                if self.config.log_confusion_matrix and split == "val":
+                    self.metric_calculator.accumulate_confusion_matrix(output, targets)
 
         metrics = {k: v / count for k, v in metric_accum.items()}
         self.plugin_manager.execute_hook("on_validation_end", self, metrics)
+
+        # Log confusion matrix to wandb
+        if self.config.log_confusion_matrix and split == "val" and self.config.log_to_wandb:
+            cm = self.metric_calculator.compute_confusion_matrix()
+            if cm is not None:
+                class_names = self.config.confusion_matrix_labels or [str(i) for i in range(cm.shape[0])]
+                wandb.log({
+                    f"confusion_matrix/{split}": wandb.plot.confusion_matrix(
+                        probs=None,
+                        y_true=self.metric_calculator._all_targets,
+                        preds=self.metric_calculator._all_preds,
+                        class_names=class_names
+                    )
+                }, step=self.current_epoch)
 
         if self.window:
             self.window.update(metrics)
@@ -425,10 +459,18 @@ class Trainer:
                 sched.step()
 
     def _log_metrics(self, metrics: Dict[str, float], step: int):
+        log_items = []
+        for k, v in metrics.items():
+            try:
+                log_items.append(f"{k}: {v:.4f}")
+            except (TypeError, ValueError):
+                log_items.append(f"{k}: {v}")
         if self.config.log_all_metrics:
-            log_msg = f"Epoch {step}: " + " - ".join(f"{k}: {v:.4f}" for k, v in metrics.items())
+            log_msg = f"Epoch {step}: " + " - ".join(log_items)
         else:
-            log_msg = f"Epoch {step}: " + " ".join(f"{k}: {v:.4f}" for k, v in metrics.items() if "loss" in k or "accuracy" in k)
+            # Show only loss or accuracy related
+            filtered = [item for item in log_items if "loss" in item or "accuracy" in item]
+            log_msg = f"Epoch {step}: " + " ".join(filtered) if filtered else f"Epoch {step}: (no loss/acc metrics)"
         self.logger.info(log_msg)
 
         if self.config.log_to_wandb:
@@ -459,10 +501,12 @@ class Trainer:
         if self.config.save_best_only:
             current = metrics.get(self.config.checkpoint_metric)
             if current is not None:
-                mode = getattr(self.config, "early_stopping_mode", "min" if "loss" in self.config.checkpoint_metric else "max")
-                improved = (mode == "min" and current < self.best_metric) or (mode == "max" and current > self.best_metric)
+                mode = "min" if "loss" in self.config.checkpoint_metric else "max"
+                improved = (mode == "min" and current < self.checkpoint_best_metric) or (
+                    mode == "max" and current > self.checkpoint_best_metric
+                )
                 if improved:
-                    self.best_metric = current
+                    self.checkpoint_best_metric = current
                     is_best = True
                     save_this = True
         else:
@@ -471,30 +515,15 @@ class Trainer:
         if not save_this:
             return
 
-        serializable_config = {}
-        for k, v in self.config.__dict__.items():
-            if k.startswith('_'):
-                continue
-            try:
-                import pickle
-                pickle.dumps(v)
-                serializable_config[k] = v
-            except (TypeError, pickle.PickleError):
-                if hasattr(v, '__name__'):
-                    serializable_config[k] = v.__name__
-                elif hasattr(v, '__class__'):
-                    serializable_config[k] = str(v.__class__)
-                else:
-                    serializable_config[k] = str(v)
-
         ckpt = {
             "epoch": epoch,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dicts": [opt.state_dict() for opt in self.optimizers],
             "scheduler_state_dicts": [sch["scheduler"].state_dict() for sch in self.schedulers],
-            "config": serializable_config,
+            "config": self.config,
             "metrics": metrics,
             "best_metric": self.best_metric,
+            "checkpoint_best_metric": self.checkpoint_best_metric,
         }
         if self.scaler:
             ckpt["scaler_state_dict"] = self.scaler.state_dict()
@@ -519,6 +548,7 @@ class Trainer:
             self.scaler.load_state_dict(ckpt["scaler_state_dict"])
         self.current_epoch = ckpt.get("epoch", 0)
         self.best_metric = ckpt.get("best_metric", self.best_metric)
+        self.checkpoint_best_metric = ckpt.get("checkpoint_best_metric", self.checkpoint_best_metric)
         self.logger.info(f"Checkpoint loaded from {path}")
 
     def _get_history_dict(self) -> Dict[str, List[float]]:

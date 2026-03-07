@@ -1,3 +1,3 @@
-from arch_eval.viz.viz import VideoRecorder, RealtimeWindow, PlotSaver
+from arch_eval.viz.viz import PlotSaver, RealtimeWindow, VideoRecorder
 
 __all__ = ["VideoRecorder", "RealtimeWindow", "PlotSaver"]

@@ -1,22 +1,32 @@
 """Dataset handling and synthetic generation."""
 
-import torch
-from torch.utils.data import Dataset, DataLoader, TensorDataset, IterableDataset
-from typing import Union, Dict, List, Any, Optional, Tuple, Callable
-import numpy as np
-from arch_eval.core.exceptions import DatasetFormatError
 import logging
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
+import numpy as np
+import torch
 from sklearn.datasets import (
-    make_classification, make_regression, make_blobs, make_circles, make_moons,
-    make_friedman1, make_friedman2, make_friedman3, make_sparse_uncorrelated,
-    make_multilabel_classification
+    make_blobs,
+    make_circles,
+    make_classification,
+    make_friedman1,
+    make_friedman2,
+    make_friedman3,
+    make_moons,
+    make_multilabel_classification,
+    make_regression,
+    make_sparse_uncorrelated,
 )
+from torch.utils.data import DataLoader, Dataset, IterableDataset, TensorDataset
+
+from arch_eval.core.exceptions import DatasetFormatError
 
 logger = logging.getLogger(__name__)
 
 try:
-    import torchvision.transforms as T
     import torchvision.datasets as tv_datasets
+    import torchvision.transforms as T
+
     TORCHVISION_AVAILABLE = True
     TORCHVISION_DATASETS = {"mnist", "fashion_mnist", "cifar10", "cifar100", "svhn", "imagenet"}
 except ImportError:
@@ -26,7 +36,9 @@ except ImportError:
     TORCHVISION_DATASETS = set()
 
 try:
-    from datasets import Dataset as HFDataset, IterableDataset as HFIterableDataset
+    from datasets import Dataset as HFDataset
+    from datasets import IterableDataset as HFIterableDataset
+
     HUGGINGFACE_AVAILABLE = True
 except ImportError:
     HUGGINGFACE_AVAILABLE = False
@@ -36,10 +48,15 @@ except ImportError:
 
 class SyntheticDataset(Dataset):
     """Wrapper for synthetic datasets."""
+
     def __init__(self, data: torch.Tensor, targets: torch.Tensor):
         self.data, self.targets = data, targets
-    def __len__(self): return len(self.data)
-    def __getitem__(self, idx): return self.data[idx], self.targets[idx]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx], self.targets[idx]
 
 
 def create_synthetic_dataset(dataset_type: str, params: Dict[str, Any]) -> SyntheticDataset:
@@ -52,18 +69,30 @@ def create_synthetic_dataset(dataset_type: str, params: Dict[str, Any]) -> Synth
     if dataset_type == "classification":
         n_classes = params.get("n_classes", 2)
         n_informative = params.get("n_informative", n_features // 2)
-        X, y = make_classification(n_samples=n_samples, n_features=n_features, n_classes=n_classes,
-                                   n_informative=n_informative, n_redundant=2,
-                                   random_state=random_state, flip_y=noise)
+        X, y = make_classification(
+            n_samples=n_samples,
+            n_features=n_features,
+            n_classes=n_classes,
+            n_informative=n_informative,
+            n_redundant=2,
+            random_state=random_state,
+            flip_y=noise,
+        )
     elif dataset_type == "regression":
         n_targets = params.get("n_targets", 1)
-        X, y = make_regression(n_samples=n_samples, n_features=n_features, n_targets=n_targets,
-                               noise=noise, random_state=random_state)
+        X, y = make_regression(
+            n_samples=n_samples, n_features=n_features, n_targets=n_targets, noise=noise, random_state=random_state
+        )
     elif dataset_type == "blobs":
         n_centers = params.get("n_centers", 3)
         cluster_std = params.get("cluster_std", 1.0)
-        X, y = make_blobs(n_samples=n_samples, n_features=n_features, centers=n_centers,
-                          cluster_std=cluster_std, random_state=random_state)
+        X, y = make_blobs(
+            n_samples=n_samples,
+            n_features=n_features,
+            centers=n_centers,
+            cluster_std=cluster_std,
+            random_state=random_state,
+        )
     elif dataset_type == "circles":
         factor = params.get("factor", 0.5)
         X, y = make_circles(n_samples=n_samples, noise=noise, factor=factor, random_state=random_state)
@@ -80,9 +109,13 @@ def create_synthetic_dataset(dataset_type: str, params: Dict[str, Any]) -> Synth
     elif dataset_type == "multilabel":
         n_classes = params.get("n_classes", 5)
         n_labels = params.get("n_labels", 2)
-        X, y = make_multilabel_classification(n_samples=n_samples, n_features=n_features,
-                                              n_classes=n_classes, n_labels=n_labels,
-                                              random_state=random_state)
+        X, y = make_multilabel_classification(
+            n_samples=n_samples,
+            n_features=n_features,
+            n_classes=n_classes,
+            n_labels=n_labels,
+            random_state=random_state,
+        )
     else:
         raise ValueError(f"Unknown synthetic dataset type: {dataset_type}")
 
@@ -98,11 +131,15 @@ def create_synthetic_dataset(dataset_type: str, params: Dict[str, Any]) -> Synth
 
 class TransformDataset(Dataset):
     """Wrapper to apply transforms to a dataset."""
+
     def __init__(self, dataset, transform=None, target_transform=None):
         self.dataset = dataset
         self.transform = transform
         self.target_transform = target_transform
-    def __len__(self): return len(self.dataset)
+
+    def __len__(self):
+        return len(self.dataset)
+
     def __getitem__(self, idx):
         item = self.dataset[idx]
         if isinstance(item, (tuple, list)) and len(item) >= 2:
@@ -193,14 +230,19 @@ class DatasetHandler:
         }
         cls = cls_map[name]
         if name == "svhn":
-            return cls(root=root, split=split, transform=transform, target_transform=target_transform, download=download)
+            return cls(
+                root=root, split=split, transform=transform, target_transform=target_transform, download=download
+            )
         else:
-            is_train = (split == "train")
-            return cls(root=root, train=is_train, transform=transform, target_transform=target_transform, download=download)
+            is_train = split == "train"
+            return cls(
+                root=root, train=is_train, transform=transform, target_transform=target_transform, download=download
+            )
 
     def _from_huggingface(self, hf_dataset, streaming):
         """Convert HuggingFace dataset to PyTorch Dataset."""
         if streaming:
+
             class HFDatasetWrapper(torch.utils.data.IterableDataset):
                 def __init__(self, hf_ds, transform, target_transform):
                     self.hf_ds = hf_ds
@@ -212,8 +254,12 @@ class DatasetHandler:
                         # Infer columns
                         if isinstance(item, dict):
                             # Intentar obtener data y target de keys comunes :)
-                            data = item.get('image', item.get('pixel_values', item.get('input_ids', list(item.values())[0])))
-                            target = item.get('label', item.get('labels', list(item.values())[1] if len(item) > 1 else None))
+                            data = item.get(
+                                "image", item.get("pixel_values", item.get("input_ids", list(item.values())[0]))
+                            )
+                            target = item.get(
+                                "label", item.get("labels", list(item.values())[1] if len(item) > 1 else None)
+                            )
                         else:
                             data, target = item[0], item[1] if len(item) > 1 else None
 
@@ -226,6 +272,7 @@ class DatasetHandler:
 
             return HFDatasetWrapper(hf_dataset, self.transform, self.target_transform)
         else:
+
             class HFDatasetWrapper(torch.utils.data.Dataset):
                 def __init__(self, hf_ds, transform, target_transform):
                     self.hf_ds = hf_ds
@@ -233,12 +280,20 @@ class DatasetHandler:
                     self.target_transform = target_transform
                     # Infer column names
                     cols = hf_ds.column_names
-                    self.data_col = "image" if "image" in cols else \
-                                   ("pixel_values" if "pixel_values" in cols else \
-                                   ("input_ids" if "input_ids" in cols else cols[0]))
-                    self.target_col = "label" if "label" in cols else \
-                                     ("labels" if "labels" in cols else \
-                                     (cols[1] if len(cols) > 1 else None))
+                    self.data_col = (
+                        "image"
+                        if "image" in cols
+                        else (
+                            "pixel_values"
+                            if "pixel_values" in cols
+                            else ("input_ids" if "input_ids" in cols else cols[0])
+                        )
+                    )
+                    self.target_col = (
+                        "label"
+                        if "label" in cols
+                        else ("labels" if "labels" in cols else (cols[1] if len(cols) > 1 else None))
+                    )
 
                 def __len__(self):
                     return len(self.hf_ds)
@@ -306,9 +361,23 @@ class DatasetHandler:
 
     def _create_splits(self, dataset: Optional[Dataset], batch_size: int, dl_params: Dict, streaming: bool = False):
         if hasattr(self, "train_dataset"):
-            train_loader = self._build_loader(self.train_dataset, batch_size, shuffle=True, dl_params=dl_params, streaming=streaming)
-            val_loader = self._build_loader(self.val_dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming) if self.val_dataset else None
-            test_loader = self._build_loader(self.test_dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming) if self.test_dataset else None
+            train_loader = self._build_loader(
+                self.train_dataset, batch_size, shuffle=True, dl_params=dl_params, streaming=streaming
+            )
+            val_loader = (
+                self._build_loader(
+                    self.val_dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming
+                )
+                if self.val_dataset
+                else None
+            )
+            test_loader = (
+                self._build_loader(
+                    self.test_dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming
+                )
+                if self.test_dataset
+                else None
+            )
             return train_loader, val_loader, test_loader
 
         if dataset is None:
@@ -316,7 +385,11 @@ class DatasetHandler:
         if streaming:
             # Para streaming, no se puede dividir aleatoriamente, se usa el dataset directamente
             # For streaming can't divide randomly so i use the dataset directly
-            return self._build_loader(dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming), None, None
+            return (
+                self._build_loader(dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming),
+                None,
+                None,
+            )
         total = len(dataset)
         train_len = int(0.9 * total)
         val_len = int(0.05 * total)
@@ -331,7 +404,12 @@ class DatasetHandler:
     def _build_loader(self, ds, batch_size, shuffle, dl_params, streaming=False):
         if ds is None:
             return None
-        kwargs = {"batch_size": batch_size, "shuffle": shuffle and not streaming, "collate_fn": self.collate_fn, **dl_params}
+        kwargs = {
+            "batch_size": batch_size,
+            "shuffle": shuffle and not streaming,
+            "collate_fn": self.collate_fn,
+            **dl_params,
+        }
         if kwargs.get("num_workers", 0) == 0:
             kwargs.pop("prefetch_factor", None)
             kwargs.pop("persistent_workers", None)

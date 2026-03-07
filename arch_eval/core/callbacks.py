@@ -1,9 +1,10 @@
 """Callback base classes and built-in callbacks."""
 
-from typing import Dict, Any, List, Optional
 import logging
-import torch
 import os
+from typing import Any, Dict, List, Optional
+
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -11,21 +12,50 @@ logger = logging.getLogger(__name__)
 class Callback:
     """Base class for callbacks. All methods are no-ops by default."""
 
-    def before_training(self, trainer, config): pass
-    def after_training(self, trainer, final_metrics): pass
-    def on_train_start(self, trainer): pass
-    def on_train_end(self, trainer): pass
-    def on_epoch_start(self, trainer, epoch): pass
-    def on_epoch_end(self, trainer, epoch, metrics): pass
-    def on_batch_start(self, trainer, batch_idx, data, targets): pass
-    def on_batch_end(self, trainer, batch_idx, loss): pass
-    def on_validation_start(self, trainer): pass
-    def on_validation_end(self, trainer, metrics): pass
-    def on_backward(self, trainer, loss): pass
-    def on_optimizer_step(self, trainer): pass
-    def on_log(self, trainer, metrics, step): pass
-    def on_checkpoint(self, trainer, checkpoint_path, is_best): pass
-    def on_exception(self, trainer, exception): pass
+    def before_training(self, trainer, config):
+        pass
+
+    def after_training(self, trainer, final_metrics):
+        pass
+
+    def on_train_start(self, trainer):
+        pass
+
+    def on_train_end(self, trainer):
+        pass
+
+    def on_epoch_start(self, trainer, epoch):
+        pass
+
+    def on_epoch_end(self, trainer, epoch, metrics):
+        pass
+
+    def on_batch_start(self, trainer, batch_idx, data, targets):
+        pass
+
+    def on_batch_end(self, trainer, batch_idx, loss):
+        pass
+
+    def on_validation_start(self, trainer):
+        pass
+
+    def on_validation_end(self, trainer, metrics):
+        pass
+
+    def on_backward(self, trainer, loss):
+        pass
+
+    def on_optimizer_step(self, trainer):
+        pass
+
+    def on_log(self, trainer, metrics, step):
+        pass
+
+    def on_checkpoint(self, trainer, checkpoint_path, is_best):
+        pass
+
+    def on_exception(self, trainer, exception):
+        pass
 
     def register_hooks(self, plugin_manager):
         """Register all implemented methods as local hooks."""
@@ -53,6 +83,7 @@ class Callback:
 
 class EarlyStopping(Callback):
     """Stop training when a monitored metric has stopped improving."""
+
     def __init__(self, monitor="val_loss", min_delta=0.001, patience=10, mode="min"):
         self.monitor = monitor
         self.min_delta = min_delta
@@ -81,6 +112,7 @@ class EarlyStopping(Callback):
 
 class ModelCheckpoint(Callback):
     """Save the model after every epoch if it improves."""
+
     def __init__(self, filepath, monitor="val_loss", save_best_only=True, mode="min"):
         self.filepath = filepath
         self.monitor = monitor
@@ -96,9 +128,7 @@ class ModelCheckpoint(Callback):
         if not self.save_best_only:
             self._save(trainer, filepath, is_best=False)
             return
-        improved = (self.mode == "min" and current < self.best) or (
-            self.mode == "max" and current > self.best
-        )
+        improved = (self.mode == "min" and current < self.best) or (self.mode == "max" and current > self.best)
         if improved:
             self.best = current
             self._save(trainer, filepath, is_best=True)
@@ -107,20 +137,24 @@ class ModelCheckpoint(Callback):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         # Use temporary file to avoid corruption
         tmp = filepath + ".tmp"
-        torch.save({
-            "epoch": trainer.current_epoch,
-            "model_state_dict": trainer.model.state_dict(),
-            "optimizer_state_dicts": [opt.state_dict() for opt in trainer.optimizers],
-            "scheduler_state_dicts": [sch["scheduler"].state_dict() for sch in trainer.schedulers],
-            "config": trainer.config,
-            "metrics": trainer.history[-1] if trainer.history else {},
-        }, tmp)
+        torch.save(
+            {
+                "epoch": trainer.current_epoch,
+                "model_state_dict": trainer.model.state_dict(),
+                "optimizer_state_dicts": [opt.state_dict() for opt in trainer.optimizers],
+                "scheduler_state_dicts": [sch["scheduler"].state_dict() for sch in trainer.schedulers],
+                "config": trainer.config,
+                "metrics": trainer.history[-1] if trainer.history else {},
+            },
+            tmp,
+        )
         os.replace(tmp, filepath)
         logger.info(f"Checkpoint saved to {filepath}" + (" (best)" if is_best else ""))
 
 
 class LRSchedulerLogger(Callback):
     """Log learning rates after each epoch/step."""
+
     def on_epoch_end(self, trainer, epoch, metrics):
         for i, opt in enumerate(trainer.optimizers):
             for j, pg in enumerate(opt.param_groups):
@@ -129,9 +163,11 @@ class LRSchedulerLogger(Callback):
 
 class TensorBoardLogger(Callback):
     """Log metrics to TensorBoard."""
+
     def __init__(self, log_dir="./logs"):
         try:
             from torch.utils.tensorboard import SummaryWriter
+
             self.writer = SummaryWriter(log_dir)
         except ImportError:
             logger.warning("TensorBoard not installed. Install with 'pip install tensorboard'")

@@ -3,24 +3,34 @@
 import itertools
 import random
 from copy import deepcopy
-from typing import Dict, Any, List, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional
+
 import pandas as pd
-from arch_eval.core.trainer import Trainer
+
 from arch_eval.core.config import TrainingConfig
+from arch_eval.core.trainer import Trainer
 
 
 class HyperparameterOptimizer:
     """Simple hyperparameter search (grid/random)."""
 
-    def __init__(self, model_fn: Callable, base_config: TrainingConfig,
-                 param_grid: Dict[str, List[Any]], search_type: str = "grid",
-                 n_trials: Optional[int] = None, metric: str = "val_loss",
-                 mode: str = "min"):
+    def __init__(
+        self,
+        model_fn: Callable,
+        base_config: TrainingConfig,
+        param_grid: Dict[str, List[Any]],
+        search_type: str = "grid",
+        n_trials: Optional[int] = None,
+        metric: str = "val_loss",
+        mode: str = "min",
+    ):
         self.model_fn = model_fn
         self.base_config = base_config
         self.param_grid = param_grid
         self.search_type = search_type
-        self.n_trials = n_trials or (len(list(itertools.product(*param_grid.values()))) if search_type == "grid" else 10)
+        self.n_trials = n_trials or (
+            len(list(itertools.product(*param_grid.values()))) if search_type == "grid" else 10
+        )
         self.metric = metric
         self.mode = mode
         self.results = []

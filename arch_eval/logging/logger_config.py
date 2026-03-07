@@ -2,8 +2,9 @@
 
 import logging
 import sys
-from typing import Optional
 from logging.handlers import RotatingFileHandler
+from typing import Optional
+
 
 def setup_logging(level: str = "INFO", log_file: Optional[str] = None, fmt: Optional[str] = None) -> logging.Logger:
     fmt = fmt or "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -31,12 +32,24 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None, fmt: Opti
 
 class LoggerAdapter:
     """Adapter for consistent logging across the library."""
+
     def __init__(self, name: str):
         self.logger = logging.getLogger(f"arch_eval.{name}")
 
-    def debug(self, msg, *a, **kw): self.logger.debug(msg, *a, **kw)
-    def info(self, msg, *a, **kw): self.logger.info(msg, *a, **kw)
-    def warning(self, msg, *a, **kw): self.logger.warning(msg, *a, **kw)
-    def error(self, msg, *a, **kw): self.logger.error(msg, *a, **kw)
-    def critical(self, msg, *a, **kw): self.logger.critical(msg, *a, **kw)
-    def metric(self, msg, **kw): self.logger.info(f"METRIC: {msg}", extra=kw)
+    def debug(self, msg, *a, **kw):
+        self.logger.debug(msg, *a, **kw)
+
+    def info(self, msg, *a, **kw):
+        self.logger.info(msg, *a, **kw)
+
+    def warning(self, msg, *a, **kw):
+        self.logger.warning(msg, *a, **kw)
+
+    def error(self, msg, *a, **kw):
+        self.logger.error(msg, *a, **kw)
+
+    def critical(self, msg, *a, **kw):
+        self.logger.critical(msg, *a, **kw)
+
+    def metric(self, msg, **kw):
+        self.logger.info(f"METRIC: {msg}", extra=kw)

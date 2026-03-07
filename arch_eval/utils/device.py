@@ -1,18 +1,16 @@
-"""Device utilities for optimal hardware selection and memory management."""
+"""Device utilities with auto_device decorator."""
 
 import torch
 import psutil
-from typing import Dict, Any
+import functools
+from typing import Dict, Any, Callable, Union, Optional
+
+__all__ = ['get_optimal_device', 'get_device_info', 'memory_summary', 'auto_device']
+
 
 def get_optimal_device() -> str:
-    if torch.cuda.is_available():
-        try:
-            if torch.cuda.get_device_properties(0).total_memory > 2**30:
-                return "cuda"
-        except:
-            pass
-        return "cuda"
-    return "cpu"
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def get_device_info() -> Dict[str, Any]:
     info = {
@@ -34,6 +32,7 @@ def get_device_info() -> Dict[str, Any]:
         info["cuda_available"] = False
     return info
 
+
 def memory_summary() -> str:
     lines = []
     mem = psutil.virtual_memory()
@@ -45,3 +44,58 @@ def memory_summary() -> str:
             total = torch.cuda.get_device_properties(i).total_memory / 2**30
             lines.append(f"GPU {i} ({torch.cuda.get_device_name(i)}): alloc={alloc:.2f}GB, reserved={reserved:.2f}GB, total={total:.2f}GB")
     return "\n".join(lines)
+
+def auto_device(func: Optional[Callable] = None, *, return_cpu: bool = False):
+    """
+    Decorator to automatically move input tensors to the device of the first argument (if it has a .device)
+    or to the device specified by the instance's `device` attribute (if applied to a method).
+    If return_cpu=True, output tensors are moved back to CPU.
+    """
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            # Determine target device
+            device = None
+            if args and hasattr(args[0], 'device'):
+                # First argument is self with device attribute (e.g., Trainer)
+                device = getattr(args[0], 'device', None)
+            if device is None:
+                # Try to infer from first tensor argument
+                for arg in args:
+                    if isinstance(arg, torch.Tensor):
+                        device = arg.device
+                        break
+                if device is None:
+                    for v in kwargs.values():
+                        if isinstance(v, torch.Tensor):
+                            device = v.device
+                            break
+            if device is None:
+                device = torch.device('cpu')
+
+            # Move input tensors to device
+            new_args = []
+            for arg in args:
+                if isinstance(arg, torch.Tensor):
+                    new_args.append(arg.to(device))
+                else:
+                    new_args.append(arg)
+            new_kwargs = {}
+            for k, v in kwargs.items():
+                if isinstance(v, torch.Tensor):
+                    new_kwargs[k] = v.to(device)
+                else:
+                    new_kwargs[k] = v
+
+            result = f(*new_args, **new_kwargs)
+
+            if return_cpu and isinstance(result, torch.Tensor):
+                return result.cpu()
+            if return_cpu and isinstance(result, (tuple, list)):
+                return type(result)((r.cpu() if isinstance(r, torch.Tensor) else r) for r in result)
+            return result
+        return wrapper
+
+    if func is not None:
+        return decorator(func)
+    return decorator

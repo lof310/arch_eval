@@ -1,8 +1,9 @@
 """Profiling utilities using torch.profiler."""
 
-import torch
 from contextlib import contextmanager
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+import torch
 
 
 @contextmanager
@@ -28,7 +29,7 @@ def profiler_context(config):
         with torch.profiler.profile(
             activities=activities,
             schedule=schedule,
-            on_trace_ready=torch.profiler.tensorboard_trace_handler(trace_path.replace('.json', ''))
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(trace_path.replace(".json", "")),
         ) as prof:
             yield prof
 

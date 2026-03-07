@@ -1,16 +1,16 @@
-from arch_eval.core.trainer import Trainer
 from arch_eval.core.benchmark import Benchmark
-from arch_eval.core.config import TrainingConfig, BenchmarkConfig
+from arch_eval.core.callbacks import Callback, EarlyStopping, LRSchedulerLogger, ModelCheckpoint, TensorBoardLogger
+from arch_eval.core.config import BenchmarkConfig, TrainingConfig
 from arch_eval.core.exceptions import (
     ArchEvalError,
-    DatasetFormatError,
     ConfigurationError,
+    DatasetFormatError,
     ModelError,
     PluginError,
-    VisualizationError,
     StopTraining,
+    VisualizationError,
 )
-from arch_eval.core.callbacks import Callback, EarlyStopping, ModelCheckpoint, LRSchedulerLogger, TensorBoardLogger
+from arch_eval.core.trainer import Trainer
 
 __all__ = [
     "Trainer",

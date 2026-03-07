@@ -1,4 +1,4 @@
-"""Dynamic metric calculation based on task type."""
+"""Dynamic metric calculation based on task type, with confusion matrix support."""
 
 import torch
 import numpy as np
@@ -7,7 +7,8 @@ from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
     roc_auc_score, r2_score, mean_squared_error, mean_absolute_error,
     top_k_accuracy_score, precision_recall_fscore_support,
-    explained_variance_score, max_error, median_absolute_error
+    explained_variance_score, max_error, median_absolute_error,
+    confusion_matrix
 )
 from arch_eval.core.config import TaskType
 import logging
@@ -16,26 +17,50 @@ logger = logging.getLogger(__name__)
 
 
 class MetricCalculator:
-    """Calculates metrics based on task type."""
+    """Calculates metrics based on task type, with confusion matrix storage."""
 
     def __init__(self, task: Union[str, Any], device: str, output_transform: Optional[Callable] = None):
         self.task = task
         self.device = device
         self.output_transform = output_transform or (lambda x: x)
         self.history = {}
+        # For confusion matrix accumulation
+        self._all_preds = []
+        self._all_targets = []
+        self._conf_matrix = None
 
-    def calculate_metrics(self, outputs: Any, targets: torch.Tensor, loss: float, split: str) -> Dict[str, float]:
-        """Calculate metrics for a full epoch (deprecated, use batch version)."""
-        metrics = self.calculate_batch_metrics(outputs, targets, loss, split)
-        for k, v in metrics.items():
-            self.history.setdefault(k, []).append(v)
-        return metrics
+    def reset_confusion_matrix(self):
+        """Reset accumulated predictions for confusion matrix."""
+        self._all_preds.clear()
+        self._all_targets.clear()
+        self._conf_matrix = None
+
+    def accumulate_confusion_matrix(self, outputs: Any, targets: torch.Tensor):
+        """Accumulate predictions for later confusion matrix computation (classification only)."""
+        if isinstance(self.task, str) and self.task == TaskType.CLASSIFICATION:
+            outputs = self.output_transform(outputs)
+            if isinstance(outputs, torch.Tensor):
+                preds = torch.argmax(outputs, dim=-1).cpu().numpy()
+            elif isinstance(outputs, (tuple, list)):
+                preds = torch.argmax(outputs[0], dim=-1).cpu().numpy()
+            else:
+                return
+            targ = targets.cpu().numpy()
+            self._all_preds.extend(preds)
+            self._all_targets.extend(targ)
+
+    def compute_confusion_matrix(self, labels: Optional[List[str]] = None) -> Optional[np.ndarray]:
+        """Compute confusion matrix from accumulated predictions."""
+        if not self._all_preds:
+            return None
+        self._conf_matrix = confusion_matrix(self._all_targets, self._all_preds)
+        return self._conf_matrix
 
     def calculate_batch_metrics(self, outputs: Any, targets: torch.Tensor, loss: float, split: str) -> Dict[str, float]:
-        """Calculate metrics for a single batch."""
         metrics = {f"{split}_loss": loss}
         outputs = self.output_transform(outputs)
 
+        # Extract numpy arrays
         if isinstance(outputs, torch.Tensor):
             out_np = outputs.detach().cpu().numpy()
         elif isinstance(outputs, (tuple, list)):
@@ -61,8 +86,7 @@ class MetricCalculator:
                 m = self._language_metrics(out_np, targ_np, loss)
             else:
                 m = {}
-            for k, v in m.items():
-                metrics[f"{split}_{k}"] = v
+            metrics.update({f"{split}_{k}": v for k, v in m.items()})
 
         return metrics
 

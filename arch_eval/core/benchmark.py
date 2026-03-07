@@ -1,17 +1,21 @@
 """Benchmark class for comparing multiple models."""
 
-from typing import List, Dict, Any
-import torch.nn as nn
-from arch_eval.core.trainer import Trainer
-from arch_eval.core.config import BenchmarkConfig, TrainingConfig
-from arch_eval.logging.logger_config import LoggerAdapter
-import pandas as pd
-import logging
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import copy
+import gc
+import logging
 import multiprocessing as mp
 import os
-import gc
+import pickle
+import warnings
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from typing import Any, Dict, List
+
+import pandas as pd
+import torch.nn as nn
+
+from arch_eval.core.config import BenchmarkConfig, TrainingConfig
+from arch_eval.core.trainer import Trainer
+from arch_eval.logging.logger_config import LoggerAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -111,22 +115,28 @@ class Benchmark:
         max_workers = self.config.max_workers or len(self.models)
         args_list = [(copy.deepcopy(m), copy.deepcopy(self.config)) for m in self.models]
         results = []
-        with ProcessPoolExecutor(max_workers=max_workers, mp_context=ctx) as ex:
-            futures = [ex.submit(_train_single_process, a) for a in args_list]
-            for i, f in enumerate(as_completed(futures)):
-                try:
-                    result = f.result(timeout=self.config.timeout_seconds)
-                    results.append(result)
-                except Exception as e:
-                    self.logger.error(f"Model {self.models[i]['name']} failed: {e}")
-                    if self.config.retry_failed:
-                        self.logger.info(f"Retrying {self.models[i]['name']}...")
-                        retry_future = ex.submit(_train_single_process, args_list[i])
-                        try:
-                            result = retry_future.result(timeout=self.config.timeout_seconds)
-                            results.append(result)
-                        except Exception as e2:
-                            self.logger.error(f"Retry failed: {e2}")
+        # Try with ProcessPoolExecutor, fallback to sequential if pickling fails
+        try:
+            with ProcessPoolExecutor(max_workers=max_workers, mp_context=ctx) as ex:
+                futures = [ex.submit(_train_single_process, a) for a in args_list]
+                for i, f in enumerate(as_completed(futures)):
+                    try:
+                        result = f.result(timeout=self.config.timeout_seconds)
+                        results.append(result)
+                    except Exception as e:
+                        self.logger.error(f"Model {self.models[i]['name']} failed: {e}")
+                        if self.config.retry_failed:
+                            self.logger.info(f"Retrying {self.models[i]['name']}...")
+                            retry_future = ex.submit(_train_single_process, args_list[i])
+                            try:
+                                result = retry_future.result(timeout=self.config.timeout_seconds)
+                                results.append(result)
+                            except Exception as e2:
+                                self.logger.error(f"Retry failed: {e2}")
+        except (pickle.PicklingError, AttributeError) as e:
+            self.logger.error(f"Pickling error in process-based parallelism: {e}")
+            self.logger.warning("Falling back to sequential execution. Install 'cloudpickle' for better serialization.")
+            results = self._run_sequential()
         return results
 
     def _train_single(self, model_info):

@@ -1,17 +1,16 @@
 """Configuration dataclasses for Trainer and Benchmark."""
 
-from dataclasses import dataclass, field
-from typing import Optional, Union, List, Dict, Any, Callable
-import torch
-from enum import Enum
 import os
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Union
 
+import torch
 
 class TaskType(str, Enum):
     REGRESSION = "regression"
     CLASSIFICATION = "classification"
     NEXT_TOKEN_PREDICTION = "next-token-prediction"
-
 
 class DistributedBackend(str, Enum):
     NONE = "none"
@@ -19,12 +18,43 @@ class DistributedBackend(str, Enum):
     DISTRIBUTED = "ddp"
     FSDP = "fsdp"
 
-
 class MixedPrecisionDtype(str, Enum):
     FLOAT16 = "float16"
     BFLOAT16 = "bfloat16"
-    FP8 = "fp8"          # experimental
+    FP8 = "fp8"  # experimental
 
+def _serialize_callable(obj: Any) -> Any:
+    """Convert a callable to a serializable representation."""
+    if obj is None:
+        return None
+    if not callable(obj):
+        return obj
+    if hasattr(obj, '__name__') and hasattr(obj, '__module__') and obj.__module__ != '__main__':
+        return ('__function__', obj.__module__, obj.__name__)
+    warnings.warn(f"Callable {obj} may not be picklable.")
+    return str(obj)
+
+def _deserialize_callable(rep: Any) -> Any:
+    """Restore a callable from its serialized representation."""
+    if rep is None or not isinstance(rep, tuple):
+        return rep
+    if len(rep) == 3 and rep[0] == '__function__':
+        module_name, func_name = rep[1], rep[2]
+        try:
+            module = __import__(module_name, fromlist=[func_name])
+            return getattr(module, func_name)
+        except (ImportError, AttributeError) as e:
+            raise ValueError(f"Could not restore function {module_name}.{func_name}: {e}")
+    return rep
+
+def _serialize_dtype(dtype: torch.dtype) -> str:
+    """Convert torch.dtype to string."""
+    return str(dtype).split('.')[-1]
+
+
+def _deserialize_dtype(dtype_str: str) -> torch.dtype:
+    """Convert string back to torch.dtype."""
+    return getattr(torch, dtype_str)
 
 @dataclass
 class BaseConfig:
@@ -37,7 +67,7 @@ class BaseConfig:
     target_transform: Optional[Callable] = None
     collate_fn: Optional[Callable] = None
     dataset_streaming: bool = False
-    dataset_shard: Optional[Dict[str, Any]] = None   # ej. {"num_shards": 4, "shard_id": 0}
+    dataset_shard: Optional[Dict[str, Any]] = None  # ej. {"num_shards": 4, "shard_id": 0}
 
     # Computation
     dtype: torch.dtype = torch.float32
@@ -52,33 +82,33 @@ class BaseConfig:
     realtime: bool = True
     save_video: List[str] = field(default_factory=list)
     save_plot: List[str] = field(default_factory=list)
+    viz_metrics: Optional[List[str]] = None
 
     # External logging
     log_to_wandb: bool = False
     log_to_tensorboard: bool = False
     wandb_project: Optional[str] = None
     wandb_run_name: Optional[str] = None
-    tensorboard_dir: str = "./logs"
 
     # Reproducibility
     seed: Optional[int] = None
     deterministic: bool = False
 
     # DataLoader params
-    dataloader_params: Dict[str, Any] = field(default_factory=lambda: {
-        "num_workers": 0,
-        "pin_memory": False,
-        "prefetch_factor": 2,
-        "persistent_workers": False,
-    })
+    dataloader_params: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "num_workers": 0,
+            "pin_memory": False,
+            "prefetch_factor": 2,
+            "persistent_workers": False,
+        }
+    )
 
     def __post_init__(self):
         if self.device is None:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         if self.device.startswith("cuda"):
             self.dataloader_params["pin_memory"] = True
-        else:
-            self.dataloader_params["pin_memory"] = False
         if self.seed is not None:
             torch.manual_seed(self.seed)
             torch.cuda.manual_seed_all(self.seed)
@@ -88,6 +118,25 @@ class BaseConfig:
         if self.deterministic:
             torch.use_deterministic_algorithms(True)
             os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+        if self.viz_metrics is None:
+            self.viz_metrics = self.save_video.copy()
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        for f in ['transform', 'target_transform', 'collate_fn']:
+            if f in state:
+                state[f] = _serialize_callable(state[f])
+        if 'dtype' in state:
+            state['dtype'] = _serialize_dtype(state['dtype'])
+        return state
+
+    def __setstate__(self, state):
+        for f in ['transform', 'target_transform', 'collate_fn']:
+            if f in state:
+                state[f] = _deserialize_callable(state[f])
+        if 'dtype' in state and isinstance(state['dtype'], str):
+            state['dtype'] = _deserialize_dtype(state['dtype'])
+        self.__dict__.update(state)
 
 @dataclass
 class TrainingConfig(BaseConfig):
@@ -96,13 +145,15 @@ class TrainingConfig(BaseConfig):
     # Training
     optimizers: List[Dict[str, Any]] = field(default_factory=list)
     schedulers: List[Dict[str, Any]] = field(default_factory=list)
-    training_args: Dict[str, Any] = field(default_factory=lambda: {
-        "batch_size": 16,
-        "learning_rate": 1e-3,
-        "num_epochs": 10,
-        "weight_decay": 1e-2,
-        "momentum": 0.9,
-    })
+    training_args: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "batch_size": 16,
+            "learning_rate": 1e-3,
+            "num_epochs": 10,
+            "weight_decay": 1e-2,
+            "momentum": 0.9,
+        }
+    )
 
     # Task
     task: Union[str, Any] = TaskType.CLASSIFICATION
@@ -164,7 +215,7 @@ class TrainingConfig(BaseConfig):
     retry_failed: bool = False
 
     # Profiling
-    profiler: Optional[Dict[str, Any]] = None   # ej. {"enabled": True, "activities": ["cpu", "cuda"], "schedule": {...}}
+    profiler: Optional[Dict[str, Any]] = None  # ej. {"enabled": True, "activities": ["cpu", "cuda"], "schedule": {...}}
 
     def __post_init__(self):
         super().__post_init__()
@@ -203,6 +254,37 @@ class TrainingConfig(BaseConfig):
             except ImportError:
                 raise ConfigurationError("FP8 requires NVIDIA Transformer Engine installed.")
 
+    def __getstate__(self):
+        state = super().__getstate__()
+        for f in ['model_output_transform', 'loss_function']:
+            if f in state:
+                state[f] = _serialize_callable(state[f])
+        if 'callbacks' in state:
+            serialized_callbacks = []
+            for cb in state['callbacks']:
+                if hasattr(cb, '__getstate__'):
+                    serialized_callbacks.append((cb.__class__, cb.__getstate__()))
+                else:
+                    warnings.warn(f"Callback {cb} may not be picklable.")
+                    serialized_callbacks.append((cb.__class__, None))
+            state['callbacks'] = serialized_callbacks
+        return state
+
+    def __setstate__(self, state):
+        for f in ['model_output_transform', 'loss_function']:
+            if f in state:
+                state[f] = _deserialize_callable(state[f])
+        if 'callbacks' in state:
+            restored_callbacks = []
+            for cls, cb_state in state['callbacks']:
+                if cb_state is not None:
+                    cb = cls.__new__(cls)
+                    cb.__setstate__(cb_state)
+                else:
+                    cb = cls()
+                restored_callbacks.append(cb)
+            state['callbacks'] = restored_callbacks
+        super().__setstate__(state)
 
 @dataclass
 class BenchmarkConfig(BaseConfig):
