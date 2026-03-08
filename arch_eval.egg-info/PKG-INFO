@@ -1,0 +1,192 @@
+Metadata-Version: 2.4
+Name: arch_eval
+Version: 0.1.0
+Summary: High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning Models.
+Author-email: Leinier Orama <lof310w@gmail.com>
+Maintainer-email: Leinier Orama <lof310w@gmail.com>
+License: Apache-2.0
+Project-URL: Homepage, https://github.com/lof310/arch_eval
+Project-URL: Repository, https://github.com/lof310/arch_eval.git
+Keywords: evaluation,training,architectures,llm,research,transformers,pytorch,deep-learning,machine-learning
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: torch>=1.12.0
+Requires-Dist: transformers>=4.30.0
+Dynamic: license-file
+
+# arch_eval
+
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-1.9+-ee4c2c.svg)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-lof310%2Farch__eval-blue)](https://github.com/lof310/arch_eval)
+[![Stars](https://img.shields.io/github/stars/lof310/transformer)](#)
+[![Downloads](https://img.shields.io/github/downloads/lof310/transformer/total)](https://github.com/lof310/transformer/releases)
+
+High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning models. It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
+
+## Features
+
+- **Unified Training Interface**: Train single models with easy to use configuration options.
+- **Multi-Model Benchmarking**: Compare multiple Architectures sequentially or in parallel (thread/process-based).
+- **Distributed Training**: Built-in support for DataParallel, DistributedDataParallel (DDP), and FSDP.
+- **Advanced Mixed Precision**: AMP with float16, bfloat16, and experimental FP8 support.
+- **Gradient Checkpointing**: Reduce memory footprint for large models.
+- **Rich Visualization**: Real-time training windows, video recording of metrics, and publication‑ready plots.
+- **Logging**: Integration with Weights & Biases.
+- **Hyperparameter Optimization**: Grid search and random search out of the box.
+- **Extensible Plugin System**: Custom hooks and callbacks for maximum flexibility.
+- **Data Handling**: Supports PyTorch Datasets, synthetic data, torchvision datasets, Hugging Face datasets, and streaming.
+
+## Installation
+
+Install from the GitHub repository:
+
+```bash
+# Clone the repository
+git clone --depth=1 https://github.com/lof310/arch_eval.git
+cd arch_eval
+
+# Install in development mode (recommended)
+pip install -e .
+
+# Install normally
+pip install .
+```
+
+## Quick Start
+
+### 1. Train a Single Model
+
+```python
+import torch.nn as nn
+from arch_eval import Trainer, TrainingConfig
+
+# Define a global configuration
+# Dataset
+n_samples, n_features, n_classes = 5000, 128, 64
+
+# Model
+input_size, hidden = n_features, n_features*2
+
+# Training
+batch_size, num_epochs = 16, 4
+
+# Define a simple model
+class MLP(nn.Module):
+    def __init__(self, input_size=128, hidden=256, num_classes=64):
+        super().__init__()
+
+        self.net = nn.Sequential(
+            nn.Linear(input_size, hidden),
+            nn.GELU(),
+            nn.Linear(hidden, num_classes)
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+# Configure training
+config = TrainingConfig(
+    dataset="synthetic classification",
+    dataset_params={"n_samples": n_samples, "n_features": n_features, "n_classes": n_classes},
+    training_args={"num_epochs": num_epochs, "batch_size": batch_size},
+    task="classification",
+    realtime=True,
+    save_plot=["loss", "accuracy"]
+)
+
+model = MLP(input_size, hidden, n_classes)
+trainer = Trainer(model, config)
+history = trainer.train()
+```
+
+### 2. Benchmark Multiple Models
+
+```python
+from arch_eval import Benchmark, BenchmarkConfig
+
+models = [
+    {"name": "Small MLP", "model": MLP(hidden=256)},
+    {"name": "Large MLP", "model": MLP(hidden=512)}
+]
+
+config = BenchmarkConfig(
+    dataset="synthetic classification",
+    dataset_params={"n_samples": 10000, "n_features": 128, "n_classes": 64},
+    compare_metrics=["accuracy", "loss"],
+    parallel=True
+)
+
+benchmark = Benchmark(models, config)
+results = benchmark.run()
+print(results)
+```
+
+### 3. Hyperparameter Search
+
+```python
+from arch_eval import HyperparameterOptimizer
+
+def model_fn():
+    return MLP()
+
+base_config = TrainingConfig(
+    dataset="synthetic classification",
+    dataset_params={"n_samples": 1000, "n_features": 128, "n_classes": 64},
+    training_args={"num_epochs": 3},
+    task="classification",
+    realtime=False  # disable live plots during search
+)
+
+param_grid = {
+    "learning_rate": [0.001, 0.01, 0.1],
+    "hidden": [10, 20, 50]
+}
+
+optimizer = HyperparameterOptimizer(
+    model_fn, base_config, param_grid,
+    search_type="grid", metric="val_accuracy", mode="max"
+)
+results = optimizer.run()
+```
+
+## Documentation
+
+Documentation is under development.
+
+## Contributing
+
+Contributions are welcome!
+
+## License
+
+Distributed under the Apache License 2.0. See `LICENSE` for more information.
+
+## Citation
+
+If you use arch_eval in your research, please cite:
+
+```bibtex
+@software{arch_eval2026,
+  author = {Leinier Orama},
+  title = {arch_eval: High-level Library for Architecture Evaluation of ML Models},
+  year = {2026},
+  publisher = {GitHub},
+  url = {https://github.com/lof310/arch_eval}
+}
+```
