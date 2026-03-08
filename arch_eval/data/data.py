@@ -5,19 +5,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from sklearn.datasets import (
-    make_blobs,
-    make_circles,
-    make_classification,
-    make_friedman1,
-    make_friedman2,
-    make_friedman3,
-    make_moons,
-    make_multilabel_classification,
-    make_regression,
-    make_sparse_uncorrelated,
-)
-from torch.utils.data import DataLoader, Dataset, IterableDataset, TensorDataset
+from sklearn.datasets import (make_blobs, make_circles, make_classification,
+                              make_friedman1, make_friedman2, make_friedman3,
+                              make_moons, make_multilabel_classification,
+                              make_regression, make_sparse_uncorrelated)
+from torch.utils.data import (DataLoader, Dataset, IterableDataset,
+                              TensorDataset)
 
 from arch_eval.core.exceptions import DatasetFormatError
 
@@ -74,7 +67,7 @@ def create_synthetic_dataset(dataset_type: str, params: Dict[str, Any]) -> Synth
         # Ensure n_informative is large enough to separate the classes
         required_informative = int(np.ceil(np.log2(n_classes * n_clusters_per_class)))
         if n_informative < required_informative:
-            if "n_informative" not in params:   # user didn't set it, we can adjust
+            if "n_informative" not in params:  # user didn't set it, we can adjust
                 n_informative = min(required_informative, n_features)
                 logger.warning(
                     f"n_informative increased from {n_features//2} to {n_informative} "

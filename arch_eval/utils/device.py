@@ -1,11 +1,12 @@
 """Device utilities with auto_device decorator."""
 
-import torch
-import psutil
 import functools
-from typing import Dict, Any, Callable, Union, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
-__all__ = ['get_optimal_device', 'get_device_info', 'memory_summary', 'auto_device']
+import psutil
+import torch
+
+__all__ = ["get_optimal_device", "get_device_info", "memory_summary", "auto_device"]
 
 
 def get_optimal_device() -> str:
@@ -20,14 +21,16 @@ def get_device_info() -> Dict[str, Any]:
         "memory_available": psutil.virtual_memory().available,
     }
     if torch.cuda.is_available():
-        info.update({
-            "cuda_available": True,
-            "cuda_device_count": torch.cuda.device_count(),
-            "cuda_device_name": torch.cuda.get_device_name(0),
-            "cuda_memory_allocated": torch.cuda.memory_allocated(0),
-            "cuda_memory_reserved": torch.cuda.memory_reserved(0),
-            "cuda_max_memory_allocated": torch.cuda.max_memory_allocated(0),
-        })
+        info.update(
+            {
+                "cuda_available": True,
+                "cuda_device_count": torch.cuda.device_count(),
+                "cuda_device_name": torch.cuda.get_device_name(0),
+                "cuda_memory_allocated": torch.cuda.memory_allocated(0),
+                "cuda_memory_reserved": torch.cuda.memory_reserved(0),
+                "cuda_max_memory_allocated": torch.cuda.max_memory_allocated(0),
+            }
+        )
     else:
         info["cuda_available"] = False
     return info
@@ -42,8 +45,11 @@ def memory_summary() -> str:
             alloc = torch.cuda.memory_allocated(i) / 2**30
             reserved = torch.cuda.memory_reserved(i) / 2**30
             total = torch.cuda.get_device_properties(i).total_memory / 2**30
-            lines.append(f"GPU {i} ({torch.cuda.get_device_name(i)}): alloc={alloc:.2f}GB, reserved={reserved:.2f}GB, total={total:.2f}GB")
+            lines.append(
+                f"GPU {i} ({torch.cuda.get_device_name(i)}): alloc={alloc:.2f}GB, reserved={reserved:.2f}GB, total={total:.2f}GB"
+            )
     return "\n".join(lines)
+
 
 def auto_device(func: Optional[Callable] = None, *, return_cpu: bool = False):
     """
@@ -51,14 +57,15 @@ def auto_device(func: Optional[Callable] = None, *, return_cpu: bool = False):
     or to the device specified by the instance's `device` attribute (if applied to a method).
     If return_cpu=True, output tensors are moved back to CPU.
     """
+
     def decorator(f):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             # Determine target device
             device = None
-            if args and hasattr(args[0], 'device'):
+            if args and hasattr(args[0], "device"):
                 # First argument is self with device attribute (e.g., Trainer)
-                device = getattr(args[0], 'device', None)
+                device = getattr(args[0], "device", None)
             if device is None:
                 # Try to infer from first tensor argument
                 for arg in args:
@@ -71,7 +78,7 @@ def auto_device(func: Optional[Callable] = None, *, return_cpu: bool = False):
                             device = v.device
                             break
             if device is None:
-                device = torch.device('cpu')
+                device = torch.device("cpu")
 
             # Move input tensors to device
             new_args = []
@@ -94,6 +101,7 @@ def auto_device(func: Optional[Callable] = None, *, return_cpu: bool = False):
             if return_cpu and isinstance(result, (tuple, list)):
                 return type(result)((r.cpu() if isinstance(r, torch.Tensor) else r) for r in result)
             return result
+
         return wrapper
 
     if func is not None:

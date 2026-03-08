@@ -1,17 +1,19 @@
 """Dynamic metric calculation based on task type, with confusion matrix support."""
 
-import torch
-import numpy as np
-from typing import Dict, List, Any, Optional, Union, Callable
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    roc_auc_score, r2_score, mean_squared_error, mean_absolute_error,
-    top_k_accuracy_score, precision_recall_fscore_support,
-    explained_variance_score, max_error, median_absolute_error,
-    confusion_matrix
-)
-from arch_eval.core.config import TaskType
 import logging
+from typing import Any, Callable, Dict, List, Optional, Union
+
+import numpy as np
+import torch
+from sklearn.metrics import (accuracy_score, confusion_matrix,
+                             explained_variance_score, f1_score, max_error,
+                             mean_absolute_error, mean_squared_error,
+                             median_absolute_error,
+                             precision_recall_fscore_support, precision_score,
+                             r2_score, recall_score, roc_auc_score,
+                             top_k_accuracy_score)
+
+from arch_eval.core.config import TaskType
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +118,13 @@ class MetricCalculator:
             top5 = None
 
         precision, recall, f1, _ = precision_recall_fscore_support(targ, preds, average="macro", zero_division=0)
-        res = {"accuracy": accuracy_score(targ, preds), "precision": precision, "recall": recall, "f1": f1, "auc_roc": auc}
+        res = {
+            "accuracy": accuracy_score(targ, preds),
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "auc_roc": auc,
+        }
         if top5 is not None:
             res["top5_accuracy"] = top5
         return res

@@ -10,6 +10,7 @@ import torch
 
 from arch_eval.core.exceptions import ConfigurationError
 
+
 class TaskType(str, Enum):
     REGRESSION = "regression"
     CLASSIFICATION = "classification"
@@ -35,8 +36,8 @@ def _serialize_callable(obj: Any) -> Any:
         return None
     if not callable(obj):
         return obj
-    if hasattr(obj, '__name__') and hasattr(obj, '__module__') and obj.__module__ != '__main__':
-        return ('__function__', obj.__module__, obj.__name__)
+    if hasattr(obj, "__name__") and hasattr(obj, "__module__") and obj.__module__ != "__main__":
+        return ("__function__", obj.__module__, obj.__name__)
     warnings.warn(f"Callable {obj} may not be picklable.")
     return str(obj)
 
@@ -45,7 +46,7 @@ def _deserialize_callable(rep: Any) -> Any:
     """Restore a callable from its serialized representation."""
     if rep is None or not isinstance(rep, tuple):
         return rep
-    if len(rep) == 3 and rep[0] == '__function__':
+    if len(rep) == 3 and rep[0] == "__function__":
         module_name, func_name = rep[1], rep[2]
         try:
             module = __import__(module_name, fromlist=[func_name])
@@ -57,7 +58,7 @@ def _deserialize_callable(rep: Any) -> Any:
 
 def _serialize_dtype(dtype: torch.dtype) -> str:
     """Convert torch.dtype to string."""
-    return str(dtype).split('.')[-1]
+    return str(dtype).split(".")[-1]
 
 
 def _deserialize_dtype(dtype_str: str) -> torch.dtype:
@@ -121,8 +122,10 @@ class BaseConfig:
         if self.seed is not None:
             torch.manual_seed(self.seed)
             torch.cuda.manual_seed_all(self.seed)
-            import numpy as np
             import random
+
+            import numpy as np
+
             np.random.seed(self.seed)
             random.seed(self.seed)
         if self.deterministic:
@@ -133,19 +136,19 @@ class BaseConfig:
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        for f in ['transform', 'target_transform', 'collate_fn']:
+        for f in ["transform", "target_transform", "collate_fn"]:
             if f in state:
                 state[f] = _serialize_callable(state[f])
-        if 'dtype' in state:
-            state['dtype'] = _serialize_dtype(state['dtype'])
+        if "dtype" in state:
+            state["dtype"] = _serialize_dtype(state["dtype"])
         return state
 
     def __setstate__(self, state):
-        for f in ['transform', 'target_transform', 'collate_fn']:
+        for f in ["transform", "target_transform", "collate_fn"]:
             if f in state:
                 state[f] = _deserialize_callable(state[f])
-        if 'dtype' in state and isinstance(state['dtype'], str):
-            state['dtype'] = _deserialize_dtype(state['dtype'])
+        if "dtype" in state and isinstance(state["dtype"], str):
+            state["dtype"] = _deserialize_dtype(state["dtype"])
         self.__dict__.update(state)
 
 
@@ -274,34 +277,34 @@ class TrainingConfig(BaseConfig):
 
     def __getstate__(self):
         state = super().__getstate__()
-        for f in ['model_output_transform', 'loss_function']:
+        for f in ["model_output_transform", "loss_function"]:
             if f in state:
                 state[f] = _serialize_callable(state[f])
-        if 'callbacks' in state:
+        if "callbacks" in state:
             serialized_callbacks = []
-            for cb in state['callbacks']:
-                if hasattr(cb, '__getstate__'):
+            for cb in state["callbacks"]:
+                if hasattr(cb, "__getstate__"):
                     serialized_callbacks.append((cb.__class__, cb.__getstate__()))
                 else:
                     warnings.warn(f"Callback {cb} may not be picklable.")
                     serialized_callbacks.append((cb.__class__, None))
-            state['callbacks'] = serialized_callbacks
+            state["callbacks"] = serialized_callbacks
         return state
 
     def __setstate__(self, state):
-        for f in ['model_output_transform', 'loss_function']:
+        for f in ["model_output_transform", "loss_function"]:
             if f in state:
                 state[f] = _deserialize_callable(state[f])
-        if 'callbacks' in state:
+        if "callbacks" in state:
             restored_callbacks = []
-            for cls, cb_state in state['callbacks']:
+            for cls, cb_state in state["callbacks"]:
                 if cb_state is not None:
                     cb = cls.__new__(cls)
                     cb.__setstate__(cb_state)
                 else:
                     cb = cls()
                 restored_callbacks.append(cb)
-            state['callbacks'] = restored_callbacks
+            state["callbacks"] = restored_callbacks
         super().__setstate__(state)
 
 
@@ -309,11 +312,13 @@ class TrainingConfig(BaseConfig):
 class BenchmarkConfig(BaseConfig):
     """Configuration for Benchmark."""
 
-    training_args: Dict[str, Any] = field(default_factory=lambda: {
-        "batch_size": 32,
-        "learning_rate": 0.001,
-        "num_epochs": 10,
-    })
+    training_args: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "batch_size": 32,
+            "learning_rate": 0.001,
+            "num_epochs": 10,
+        }
+    )
     task: Union[str, Any] = TaskType.CLASSIFICATION
     parallel: bool = False
     compare_metrics: List[str] = field(default_factory=lambda: ["accuracy", "loss"])
@@ -326,6 +331,7 @@ class BenchmarkConfig(BaseConfig):
         super().__post_init__()
         if self.parallel and self.device == "cuda":
             import warnings
+
             warnings.warn("Parallel execution on GPU may cause memory issues. Use with caution.")
         if self.use_processes and self.device == "cuda":
             warnings.warn("Process-based parallelism with CUDA may not work properly. Consider using sequential.")

@@ -186,9 +186,20 @@ class VideoRecorder:
 
                 video = f"{out_path}_{metric}.mp4"
                 pattern = os.path.join(d, "*.png")
-                cmd = ["ffmpeg", "-y", "-framerate", str(self.fps),
-                       "-pattern_type", "glob", "-i", pattern,
-                       "-c:v", self.codec, "-pix_fmt", "yuv420p"]
+                cmd = [
+                    "ffmpeg",
+                    "-y",
+                    "-framerate",
+                    str(self.fps),
+                    "-pattern_type",
+                    "glob",
+                    "-i",
+                    pattern,
+                    "-c:v",
+                    self.codec,
+                    "-pix_fmt",
+                    "yuv420p",
+                ]
 
                 if self.resolution:
                     cmd.extend(["-s", f"{self.resolution[0]}x{self.resolution[1]}"])
@@ -217,7 +228,9 @@ class VideoRecorder:
 class RealtimeWindow:
     """Non-interactive window displaying real-time metrics and system resources."""
 
-    def __init__(self, config, metric_names: Optional[List[str]] = None, max_points: int = 1000, figsize: tuple = (14, 8)):
+    def __init__(
+        self, config, metric_names: Optional[List[str]] = None, max_points: int = 1000, figsize: tuple = (14, 8)
+    ):
         self.config = config
         self.max_points = max_points
         self.figsize = figsize
@@ -230,8 +243,9 @@ class RealtimeWindow:
         try:
             import matplotlib
 
-            matplotlib.use('TkAgg')
+            matplotlib.use("TkAgg")
             import matplotlib.pyplot as plt
+
             self.plt = plt
             self.plt.ion()
             self._setup_plots()
@@ -262,10 +276,10 @@ class RealtimeWindow:
         self.system_ax.set_xlabel("Step")
         self.system_ax.set_ylabel("Usage %")
         self.system_ax.grid(True, alpha=0.3)
-        self.cpu_line, = self.system_ax.plot([], [], label="CPU %", color="blue")
-        self.mem_line, = self.system_ax.plot([], [], label="Memory %", color="green")
+        (self.cpu_line,) = self.system_ax.plot([], [], label="CPU %", color="blue")
+        (self.mem_line,) = self.system_ax.plot([], [], label="Memory %", color="green")
         if torch.cuda.is_available():
-            self.gpu_line, = self.system_ax.plot([], [], label="GPU %", color="red")
+            (self.gpu_line,) = self.system_ax.plot([], [], label="GPU %", color="red")
         else:
             self.gpu_line = None
         self.system_ax.legend()
@@ -276,17 +290,16 @@ class RealtimeWindow:
         self.next_metric_idx = 0
 
     def _get_system_stats(self):
-        stats = {
-            "cpu": psutil.cpu_percent(),
-            "memory": psutil.virtual_memory().percent
-        }
+        stats = {"cpu": psutil.cpu_percent(), "memory": psutil.virtual_memory().percent}
         if torch.cuda.is_available():
             stats["gpu"] = torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated() * 100
         return stats
 
     def _add_metric(self, name):
         if self.next_metric_idx >= self.max_metric_plots:
-            logger.warning(f"RealtimeWindow: maximum number of metrics ({self.max_metric_plots}) reached, ignoring {name}")
+            logger.warning(
+                f"RealtimeWindow: maximum number of metrics ({self.max_metric_plots}) reached, ignoring {name}"
+            )
             return
         ax = self.axes[self.next_metric_idx]
         ax.set_visible(True)
@@ -294,7 +307,7 @@ class RealtimeWindow:
         ax.set_xlabel("Step")
         ax.set_ylabel("Value")
         ax.grid(True, alpha=0.3)
-        line, = ax.plot([], [], lw=2)
+        (line,) = ax.plot([], [], lw=2)
         self.metric_lines[name] = line
         self.metric_axes[name] = ax
         self.metrics_history[name] = deque(maxlen=self.max_points)

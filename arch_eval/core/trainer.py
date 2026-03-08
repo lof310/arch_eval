@@ -12,15 +12,18 @@ import torch.nn as nn
 import wandb
 from torch.utils.data import DataLoader
 
-from arch_eval.core.config import DistributedBackend, MixedPrecisionDtype, TrainingConfig
-from arch_eval.core.exceptions import ConfigurationError, DistributedError, ModelError, StopTraining
+from arch_eval.core.config import (DistributedBackend, MixedPrecisionDtype,
+                                   TrainingConfig)
+from arch_eval.core.exceptions import (ConfigurationError, DistributedError,
+                                       ModelError, StopTraining)
 from arch_eval.data.data import DatasetHandler
-from arch_eval.distributed import cleanup_distributed, get_wrapped_model, init_distributed
+from arch_eval.distributed import (cleanup_distributed, get_wrapped_model,
+                                   init_distributed)
 from arch_eval.logging.logger_config import LoggerAdapter
 from arch_eval.metrics.calculator import MetricCalculator
 from arch_eval.plugins.manager import PluginManager
 from arch_eval.profiler import profiler_context
-from arch_eval.utils.device import memory_summary, auto_device
+from arch_eval.utils.device import auto_device, memory_summary
 from arch_eval.viz.viz import PlotSaver, RealtimeWindow, VideoRecorder
 
 logger = logging.getLogger(__name__)
@@ -167,8 +170,10 @@ class Trainer:
             self.model.train()
             self.logger.info("Model validation passed.")
         except Exception as e:
-            raise ModelError(f"Model validation failed on a real batch: {e}. "
-                             "Check that your model's input size matches the dataset features.")
+            raise ModelError(
+                f"Model validation failed on a real batch: {e}. "
+                "Check that your model's input size matches the dataset features."
+            )
 
     def _setup_optimizers(self):
         self.optimizers = []
@@ -441,14 +446,17 @@ class Trainer:
             cm = self.metric_calculator.compute_confusion_matrix()
             if cm is not None:
                 class_names = self.config.confusion_matrix_labels or [str(i) for i in range(cm.shape[0])]
-                wandb.log({
-                    f"confusion_matrix/{split}": wandb.plot.confusion_matrix(
-                        probs=None,
-                        y_true=np.array(self.metric_calculator._all_targets),
-                        preds=np.array(self.metric_calculator._all_preds),
-                        class_names=class_names
-                    )
-                }, step=self.current_epoch)
+                wandb.log(
+                    {
+                        f"confusion_matrix/{split}": wandb.plot.confusion_matrix(
+                            probs=None,
+                            y_true=np.array(self.metric_calculator._all_targets),
+                            preds=np.array(self.metric_calculator._all_preds),
+                            class_names=class_names,
+                        )
+                    },
+                    step=self.current_epoch,
+                )
 
         if self.window:
             self.window.update(metrics)
@@ -544,7 +552,9 @@ class Trainer:
         self.logger.info(f"Checkpoint saved to {path}")
         self.plugin_manager.execute_hook("on_checkpoint", self, path, is_best)
 
-    def load_checkpoint(self, path: str, load_optimizer: bool = True, load_scheduler: bool = True, weights_only: bool = False):
+    def load_checkpoint(
+        self, path: str, load_optimizer: bool = True, load_scheduler: bool = True, weights_only: bool = False
+    ):
         """Load a checkpoint.
 
         Args:
