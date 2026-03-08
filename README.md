@@ -1,11 +1,13 @@
-# arch_eval library
+# arch_eval
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.9+-ee4c2c.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-lof310%2Farch__eval-blue)](https://github.com/lof310/arch_eval)
+[![Stars](https://img.shields.io/github/stars/lof310/transformer)](#)
+[![Downloads](https://img.shields.io/github/downloads/lof310/transformer/total)](https://github.com/lof310/transformer/releases)
 
-**arch_eval** is a High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning models. It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
+High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning models. It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
 
 ## Features
 
@@ -15,11 +17,10 @@
 - **Advanced Mixed Precision**: AMP with float16, bfloat16, and experimental FP8 support.
 - **Gradient Checkpointing**: Reduce memory footprint for large models.
 - **Rich Visualization**: Real-time training windows, video recording of metrics, and publication‑ready plots.
-- **Logging**: DirectIntegration with Weights & Biases.
+- **Logging**: Integration with Weights & Biases.
 - **Hyperparameter Optimization**: Grid search and random search out of the box.
 - **Extensible Plugin System**: Custom hooks and callbacks for maximum flexibility.
-- **Robust Data Handling**: Supports PyTorch Datasets, synthetic data, torchvision datasets, Hugging Face datasets, and streaming.
-- **Production-Ready**: Configurable timeouts, retry logic and deterministic execution.
+- **Data Handling**: Supports PyTorch Datasets, synthetic data, torchvision datasets, Hugging Face datasets, and streaming.
 
 ## Installation
 
@@ -35,11 +36,6 @@ pip install -e .
 
 # Install normally
 pip install .
-```
-
-Or Install directly with pip
-```bash
-pip install arch_eval
 ```
 
 ## Quick Start
@@ -68,8 +64,7 @@ class MLP(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_size, hidden),
             nn.GELU(),
-            nn.Linear(hidden, num_classes),
-            nn.Softmax(dim=-1)
+            nn.Linear(hidden, num_classes)
         )
 
     def forward(self, x):

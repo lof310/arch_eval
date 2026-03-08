@@ -19,7 +19,6 @@ from arch_eval.logging.logger_config import LoggerAdapter
 
 logger = logging.getLogger(__name__)
 
-
 def _train_single_process(args):
     """Helper for process-based parallelism with memory cleanup."""
     model_info, config = args
@@ -60,7 +59,6 @@ def _train_single_process(args):
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-
 
 class Benchmark:
     """Benchmark multiple models for comparison."""

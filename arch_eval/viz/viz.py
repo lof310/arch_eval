@@ -17,6 +17,7 @@ import torch
 
 logger = logging.getLogger(__name__)
 
+
 class PlotSaver:
     """Saves final plots of metrics."""
 
@@ -69,10 +70,9 @@ class PlotSaver:
             safe = metric.replace("/", "_").replace(" ", "_")
             base_path = os.path.join(out_dir, safe)
             plt.savefig(f"{base_path}.png", dpi=150, bbox_inches="tight")
-            if fmt == "pdf" or fmt == "both":
-                plt.savefig(f"{base_path}.pdf", bbox_inches="tight")
             plt.close()
-            logger.info(f"Plot saved: {safe}.{fmt}")
+            logger.info(f"Plot saved: {safe}.png")
+
 
 class VideoRecorder:
     """Records metrics over time and generates video using ffmpeg."""
@@ -100,7 +100,6 @@ class VideoRecorder:
         self.ffmpeg_available = self._check_ffmpeg()
 
         self.base_temp = tempfile.mkdtemp(prefix="arch_eval_video_")
-        self._temp_dir_created = True
 
         for m in metrics:
             d = os.path.join(self.base_temp, m.replace("/", "_"))
@@ -168,9 +167,9 @@ class VideoRecorder:
 
     def _save_frame(self, metric, frame):
         """Save frame to disk."""
-        path = os.path.join(self.frames_dir[metric], f"frame_{self.frame_counts[metric]:06d}.png")
         import matplotlib.pyplot as plt
 
+        path = os.path.join(self.frames_dir[metric], f"frame_{self.frame_counts[metric]:06d}.png")
         plt.imsave(path, frame)
         self.frame_counts[metric] += 1
 
@@ -187,8 +186,8 @@ class VideoRecorder:
 
                 video = f"{out_path}_{metric}.mp4"
                 pattern = os.path.join(d, "*.png")
-                cmd = ["ffmpeg", "-y", "-framerate", str(self.fps), 
-                       "-pattern_type", "glob", "-i", pattern, 
+                cmd = ["ffmpeg", "-y", "-framerate", str(self.fps),
+                       "-pattern_type", "glob", "-i", pattern,
                        "-c:v", self.codec, "-pix_fmt", "yuv420p"]
 
                 if self.resolution:
@@ -218,25 +217,23 @@ class VideoRecorder:
 class RealtimeWindow:
     """Non-interactive window displaying real-time metrics and system resources."""
 
-    def __init__(self, config, max_points: int = 1000, figsize: tuple = (14, 8)):
+    def __init__(self, config, metric_names: Optional[List[str]] = None, max_points: int = 1000, figsize: tuple = (14, 8)):
         self.config = config
         self.max_points = max_points
         self.figsize = figsize
-        self.metrics_history = deque(maxlen=max_points)
+        self.metric_names = metric_names or []
+        self.metrics_history = {}  # dict of deques keyed by metric name
         self.system_history = deque(maxlen=max_points)
         self.step_counter = 0
-        self.update_queue = queue.Queue()
-        self.stop_event = threading.Event()
         self.disabled = False
-        self.root = None
-        self.running = False
 
         try:
             import matplotlib
-            matplotlib.use('TkAgg')  # or 'Qt5Agg' depending on system
+
+            matplotlib.use('TkAgg')
             import matplotlib.pyplot as plt
             self.plt = plt
-            self.plt.ion()  # interactive mode on
+            self.plt.ion()
             self._setup_plots()
             self.plt.show(block=False)
             self.plt.pause(0.001)
@@ -245,46 +242,38 @@ class RealtimeWindow:
             self.disabled = True
 
     def _setup_plots(self):
-        n_metrics = len(self.metrics_history)
-        n_system = 1  # system stats
-        total_plots = n_metrics + n_system
-        n_cols = min(2, total_plots)
-        n_rows = (total_plots + n_cols - 1) // n_cols
+        # We'll have up to 4 metric subplots + 1 system subplot
+        self.max_metric_plots = 4
+        self.n_plots = self.max_metric_plots + 1
+        self.n_cols = 2
+        self.n_rows = (self.n_plots + self.n_cols - 1) // self.n_cols
 
-        self.fig, self.axes = self.plt.subplots(n_rows, n_cols, figsize=self.figsize, squeeze=False)
+        self.fig, self.axes = self.plt.subplots(self.n_rows, self.n_cols, figsize=self.figsize, squeeze=False)
         self.axes = self.axes.flatten()
 
-        # Metrics subplots
-        self.metric_lines = {}
-        for i, name in enumerate(self.metrics_history.keys()):
-            ax = self.axes[i]
-            ax.set_title(name)
-            ax.set_xlabel("Step")
-            ax.set_ylabel("Value")
-            ax.grid(True, alpha=0.3)
-            line, = ax.plot([], [], lw=2, label=name)
-            self.metric_lines[name] = line
-            ax.legend()
+        # Hide all axes initially
+        for ax in self.axes:
+            ax.set_visible(False)
 
-        # System stats subplot
-        sys_ax = self.axes[n_metrics]
-        sys_ax.set_title("System Resources")
-        sys_ax.set_xlabel("Step")
-        sys_ax.set_ylabel("Usage %")
-        sys_ax.grid(True, alpha=0.3)
-        self.cpu_line, = sys_ax.plot([], [], label="CPU %", color="blue")
-        self.mem_line, = sys_ax.plot([], [], label="Memory %", color="green")
+        # System stats subplot (always at last position)
+        self.system_ax = self.axes[-1]
+        self.system_ax.set_visible(True)
+        self.system_ax.set_title("System Resources")
+        self.system_ax.set_xlabel("Step")
+        self.system_ax.set_ylabel("Usage %")
+        self.system_ax.grid(True, alpha=0.3)
+        self.cpu_line, = self.system_ax.plot([], [], label="CPU %", color="blue")
+        self.mem_line, = self.system_ax.plot([], [], label="Memory %", color="green")
         if torch.cuda.is_available():
-            self.gpu_line, = sys_ax.plot([], [], label="GPU %", color="red")
+            self.gpu_line, = self.system_ax.plot([], [], label="GPU %", color="red")
         else:
             self.gpu_line = None
-        sys_ax.legend()
+        self.system_ax.legend()
 
-        # Hide unused subplots
-        for j in range(total_plots, len(self.axes)):
-            self.axes[j].set_visible(False)
-
-        self.fig.tight_layout()
+        # Metric lines will be added dynamically
+        self.metric_lines = {}
+        self.metric_axes = {}
+        self.next_metric_idx = 0
 
     def _get_system_stats(self):
         stats = {
@@ -295,13 +284,54 @@ class RealtimeWindow:
             stats["gpu"] = torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated() * 100
         return stats
 
-    def _animate(self, frame):
+    def _add_metric(self, name):
+        if self.next_metric_idx >= self.max_metric_plots:
+            logger.warning(f"RealtimeWindow: maximum number of metrics ({self.max_metric_plots}) reached, ignoring {name}")
+            return
+        ax = self.axes[self.next_metric_idx]
+        ax.set_visible(True)
+        ax.set_title(name)
+        ax.set_xlabel("Step")
+        ax.set_ylabel("Value")
+        ax.grid(True, alpha=0.3)
+        line, = ax.plot([], [], lw=2)
+        self.metric_lines[name] = line
+        self.metric_axes[name] = ax
+        self.metrics_history[name] = deque(maxlen=self.max_points)
+        self.next_metric_idx += 1
+        # Adjust layout
+        self.fig.tight_layout()
+
+    def update(self, metrics: Dict[str, float]):
+        if self.disabled:
+            return
+        self.step_counter += 1
+        if self.step_counter % self.config.viz_interval != 0:
+            return
+
+        # Update system stats
+        self.system_history.append(self._get_system_stats())
+
+        # Update metric histories and add new metrics if needed
+        for name, value in metrics.items():
+            if name not in self.metrics_history:
+                if self.next_metric_idx < self.max_metric_plots:
+                    self._add_metric(name)
+                else:
+                    continue
+            self.metrics_history[name].append(value)
+
+        # Redraw plots
+        self._update_plots()
+
+    def _update_plots(self):
         # Update metric lines
         for name, line in self.metric_lines.items():
-            data = list(self.metrics_history[name])
+            data = list(self.metrics_history.get(name, []))
             if data:
-                line.set_data(range(len(data)), data)
-                ax = line.axes
+                steps = list(range(len(data)))
+                line.set_data(steps, data)
+                ax = self.metric_axes[name]
                 ax.relim()
                 ax.autoscale_view()
 
@@ -315,22 +345,11 @@ class RealtimeWindow:
             if self.gpu_line and "gpu" in self.system_history[0]:
                 gpu_vals = [s.get("gpu", 0) for s in self.system_history]
                 self.gpu_line.set_data(steps, gpu_vals)
-            ax = self.cpu_line.axes
-            ax.relim()
-            ax.autoscale_view()
+            self.system_ax.relim()
+            self.system_ax.autoscale_view()
 
-        return list(self.metric_lines.values()) + [self.cpu_line, self.mem_line] + ([self.gpu_line] if self.gpu_line else [])
-
-    def update(self, metrics: Dict[str, float]):
-        if self.disabled:
-            return
-        self.step_counter += 1
-        if self.step_counter % self.config.viz_interval != 0:
-            return
-        for name in self.metrics_history:
-            if name in metrics:
-                self.metrics_history[name].append(metrics[name])
-        self.system_history.append(self._get_system_stats())
+        self.fig.canvas.draw_idle()
+        self.plt.pause(0.001)
 
     def close(self):
         if self.disabled:

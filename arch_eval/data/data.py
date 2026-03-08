@@ -68,12 +68,31 @@ def create_synthetic_dataset(dataset_type: str, params: Dict[str, Any]) -> Synth
 
     if dataset_type == "classification":
         n_classes = params.get("n_classes", 2)
+        n_clusters_per_class = params.get("n_clusters_per_class", 2)
         n_informative = params.get("n_informative", n_features // 2)
+
+        # Ensure n_informative is large enough to separate the classes
+        required_informative = int(np.ceil(np.log2(n_classes * n_clusters_per_class)))
+        if n_informative < required_informative:
+            if "n_informative" not in params:   # user didn't set it, we can adjust
+                n_informative = min(required_informative, n_features)
+                logger.warning(
+                    f"n_informative increased from {n_features//2} to {n_informative} "
+                    f"to accommodate {n_classes} classes with {n_clusters_per_class} clusters each."
+                )
+            else:
+                raise ValueError(
+                    f"n_informative={n_informative} is too small for {n_classes} classes "
+                    f"with {n_clusters_per_class} clusters per class. Minimum required is "
+                    f"{required_informative}. Either increase n_informative, reduce n_classes, "
+                    f"or increase n_features."
+                )
         X, y = make_classification(
             n_samples=n_samples,
             n_features=n_features,
             n_classes=n_classes,
             n_informative=n_informative,
+            n_clusters_per_class=n_clusters_per_class,
             n_redundant=2,
             random_state=random_state,
             flip_y=noise,
@@ -253,7 +272,6 @@ class DatasetHandler:
                     for item in self.hf_ds:
                         # Infer columns
                         if isinstance(item, dict):
-                            # Intentar obtener data y target de keys comunes :)
                             data = item.get(
                                 "image", item.get("pixel_values", item.get("input_ids", list(item.values())[0]))
                             )
@@ -268,7 +286,7 @@ class DatasetHandler:
                         if target is not None and self.target_transform:
                             target = self.target_transform(target)
 
-                        yield (data, target) if target is not None else data
+                        yield (data, target) if target is not None else (data, None)
 
             return HFDatasetWrapper(hf_dataset, self.transform, self.target_transform)
         else:
@@ -278,7 +296,6 @@ class DatasetHandler:
                     self.hf_ds = hf_ds
                     self.transform = transform
                     self.target_transform = target_transform
-                    # Infer column names
                     cols = hf_ds.column_names
                     self.data_col = (
                         "image"
@@ -304,7 +321,7 @@ class DatasetHandler:
                     if self.transform:
                         data = self.transform(data)
                     if self.target_col is None:
-                        return data
+                        return data, None
                     target = item[self.target_col]
                     if self.target_transform:
                         target = self.target_transform(target)
@@ -383,8 +400,6 @@ class DatasetHandler:
         if dataset is None:
             raise DatasetFormatError("No dataset provided")
         if streaming:
-            # Para streaming, no se puede dividir aleatoriamente, se usa el dataset directamente
-            # For streaming can't divide randomly so i use the dataset directly
             return (
                 self._build_loader(dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming),
                 None,

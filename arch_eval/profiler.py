@@ -1,9 +1,12 @@
 """Profiling utilities using torch.profiler."""
 
+import logging
 from contextlib import contextmanager
 from typing import Any, Dict, Optional
 
 import torch
+
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -33,6 +36,6 @@ def profiler_context(config):
         ) as prof:
             yield prof
 
-        print(f"Profiling trace saved to {trace_path}")
+        logger.info(f"Profiling trace saved to {trace_path}")
     else:
         yield None

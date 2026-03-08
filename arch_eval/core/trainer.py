@@ -2,7 +2,6 @@
 
 import logging
 import os
-import time
 from collections import defaultdict
 from contextlib import AbstractContextManager
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -19,9 +18,9 @@ from arch_eval.data.data import DatasetHandler
 from arch_eval.distributed import cleanup_distributed, get_wrapped_model, init_distributed
 from arch_eval.logging.logger_config import LoggerAdapter
 from arch_eval.metrics.calculator import MetricCalculator
-from arch_eval.plugins.manager import PluginManager, hook
+from arch_eval.plugins.manager import PluginManager
 from arch_eval.profiler import profiler_context
-from arch_eval.utils.device import memory_summary
+from arch_eval.utils.device import memory_summary, auto_device
 from arch_eval.viz.viz import PlotSaver, RealtimeWindow, VideoRecorder
 
 logger = logging.getLogger(__name__)
@@ -61,12 +60,14 @@ class Trainer:
         else:
             self.model = model
 
-        self._validate_model()
         self.device = torch.device(config.device)
         self.model = self.model.to(self.device).to(config.dtype)
 
         self.dataset_handler = DatasetHandler(config)
         self.train_loader, self.val_loader, self.test_loader = self.dataset_handler.prepare_loaders()
+
+        # Validate model with a real batch (if train_loader exists)
+        self._validate_model_with_data()
 
         self.metric_calculator = MetricCalculator(
             config.task, config.device, output_transform=config.model_output_transform
@@ -81,7 +82,7 @@ class Trainer:
         self.amp_dtype = self._get_amp_dtype()
         self.scaler = torch.cuda.amp.GradScaler() if self.use_amp and config.grad_scaler else None
 
-        # Gradient checkpointing (experimental) TODO
+        # Gradient checkpointing (experimental)
         if config.gradient_checkpointing:
             self._apply_gradient_checkpointing()
 
@@ -89,7 +90,7 @@ class Trainer:
         self.window = None
         if config.realtime:
             try:
-                self.window = RealtimeWindow(config)
+                self.window = RealtimeWindow(config, metric_names=config.viz_metrics)
                 if getattr(self.window, "disabled", False):
                     self.window = None
             except Exception as e:
@@ -120,6 +121,9 @@ class Trainer:
         self.accumulation_steps = config.gradient_accumulation_steps
         self.current_accum_step = 0
 
+        # Initialize checkpoint best metric
+        self.checkpoint_best_metric = None
+
         self.logger.info(f"Trainer initialized on {self.device}\n{memory_summary()}")
 
     def _get_amp_dtype(self):
@@ -135,10 +139,7 @@ class Trainer:
             return torch.float16
 
     def _apply_gradient_checkpointing(self):
-        """Experimental: attempts to enable gradient checkpointing on specified modules.
-        This is not a standard PyTorch feature; models must implement it internally.
-        The current implementation sets a '_gradient_checkpointing' attribute on modules,
-        which may be used by custom layers. For most models, this will have no effect."""
+        """Experimental: attempts to enable gradient checkpointing on specified modules."""
         if self.config.gradient_checkpointing_modules:
             for name in self.config.gradient_checkpointing_modules:
                 module = dict(self.model.named_modules()).get(name)
@@ -150,14 +151,24 @@ class Trainer:
                     module._gradient_checkpointing = True
         self.logger.warning("Gradient checkpointing is experimental and may not work as expected.")
 
-    def _validate_model(self):
-        shape = self.config.input_shape or (1, 10)
-        dummy = torch.randn(1, *shape).to(torch.device(self.config.device))
+    def _validate_model_with_data(self):
+        """Run a forward pass on a single batch to ensure the model accepts the data."""
+        if self.train_loader is None:
+            self.logger.warning("No training loader – skipping model validation.")
+            return
         try:
+            # Get one batch
+            data, targets = next(iter(self.train_loader))
+            data = data.to(self.device)
+            targets = targets.to(self.device)
+            self.model.eval()
             with torch.no_grad():
-                self.model(dummy)
+                _ = self.model(data)
+            self.model.train()
+            self.logger.info("Model validation passed.")
         except Exception as e:
-            raise ModelError(f"Model validation failed: {e}")
+            raise ModelError(f"Model validation failed on a real batch: {e}. "
+                             "Check that your model's input size matches the dataset features.")
 
     def _setup_optimizers(self):
         self.optimizers = []
@@ -231,7 +242,7 @@ class Trainer:
 
     def _compute_loss(self, output, targets):
         if isinstance(output, tuple) and len(output) == 2:
-            return output[1] # Assume second element is loss
+            return output[1]  # Assume second element is loss
         else:
             return self.criterion(output, targets)
 
@@ -298,8 +309,6 @@ class Trainer:
                 self.window.close()
             if self.config.log_to_wandb:
                 wandb.finish()
-            if hasattr(self, "tb_writer") and self.tb_writer:
-                self.tb_writer.close()
             if self.config.distributed_backend != DistributedBackend.NONE:
                 cleanup_distributed()
 
@@ -334,7 +343,6 @@ class Trainer:
             else:
                 loss.backward()
 
-#            self.plugin_manager.execute_hook("on_backward", self, loss.item() * self.accumulation_steps) # FIXME: Possible Overhead
             self.current_accum_step += 1
 
             if self.current_accum_step % self.accumulation_steps == 0:
@@ -397,7 +405,6 @@ class Trainer:
         total_loss = 0.0
         metric_accum = defaultdict(float)
         count = 0
-        autocast = torch.cuda.amp.autocast if self.use_amp else NullContext
 
         # Reset confusion matrix accumulator if needed
         if self.config.log_confusion_matrix and split == "val":
@@ -437,8 +444,8 @@ class Trainer:
                 wandb.log({
                     f"confusion_matrix/{split}": wandb.plot.confusion_matrix(
                         probs=None,
-                        y_true=self.metric_calculator._all_targets,
-                        preds=self.metric_calculator._all_preds,
+                        y_true=np.array(self.metric_calculator._all_targets),
+                        preds=np.array(self.metric_calculator._all_preds),
                         class_names=class_names
                     )
                 }, step=self.current_epoch)
@@ -475,9 +482,6 @@ class Trainer:
 
         if self.config.log_to_wandb:
             wandb.log(metrics, step=step)
-        if hasattr(self, "tb_writer") and self.tb_writer:
-            for k, v in metrics.items():
-                self.tb_writer.add_scalar(k, v, step)
 
         self.plugin_manager.execute_hook("on_log", self, metrics, step)
 
@@ -502,13 +506,18 @@ class Trainer:
             current = metrics.get(self.config.checkpoint_metric)
             if current is not None:
                 mode = "min" if "loss" in self.config.checkpoint_metric else "max"
-                improved = (mode == "min" and current < self.checkpoint_best_metric) or (
-                    mode == "max" and current > self.checkpoint_best_metric
-                )
-                if improved:
+                if self.checkpoint_best_metric is None:
                     self.checkpoint_best_metric = current
                     is_best = True
                     save_this = True
+                else:
+                    improved = (mode == "min" and current < self.checkpoint_best_metric) or (
+                        mode == "max" and current > self.checkpoint_best_metric
+                    )
+                    if improved:
+                        self.checkpoint_best_metric = current
+                        is_best = True
+                        save_this = True
         else:
             if epoch % self.config.save_frequency == 0:
                 save_this = True

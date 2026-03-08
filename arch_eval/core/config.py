@@ -1,16 +1,19 @@
 """Configuration dataclasses for Trainer and Benchmark."""
 
 import os
+import warnings
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import torch
 
+
 class TaskType(str, Enum):
     REGRESSION = "regression"
     CLASSIFICATION = "classification"
     NEXT_TOKEN_PREDICTION = "next-token-prediction"
+
 
 class DistributedBackend(str, Enum):
     NONE = "none"
@@ -18,10 +21,12 @@ class DistributedBackend(str, Enum):
     DISTRIBUTED = "ddp"
     FSDP = "fsdp"
 
+
 class MixedPrecisionDtype(str, Enum):
     FLOAT16 = "float16"
     BFLOAT16 = "bfloat16"
     FP8 = "fp8"  # experimental
+
 
 def _serialize_callable(obj: Any) -> Any:
     """Convert a callable to a serializable representation."""
@@ -33,6 +38,7 @@ def _serialize_callable(obj: Any) -> Any:
         return ('__function__', obj.__module__, obj.__name__)
     warnings.warn(f"Callable {obj} may not be picklable.")
     return str(obj)
+
 
 def _deserialize_callable(rep: Any) -> Any:
     """Restore a callable from its serialized representation."""
@@ -47,6 +53,7 @@ def _deserialize_callable(rep: Any) -> Any:
             raise ValueError(f"Could not restore function {module_name}.{func_name}: {e}")
     return rep
 
+
 def _serialize_dtype(dtype: torch.dtype) -> str:
     """Convert torch.dtype to string."""
     return str(dtype).split('.')[-1]
@@ -55,6 +62,7 @@ def _serialize_dtype(dtype: torch.dtype) -> str:
 def _deserialize_dtype(dtype_str: str) -> torch.dtype:
     """Convert string back to torch.dtype."""
     return getattr(torch, dtype_str)
+
 
 @dataclass
 class BaseConfig:
@@ -112,7 +120,8 @@ class BaseConfig:
         if self.seed is not None:
             torch.manual_seed(self.seed)
             torch.cuda.manual_seed_all(self.seed)
-            import numpy as np, random
+            import numpy as np
+            import random
             np.random.seed(self.seed)
             random.seed(self.seed)
         if self.deterministic:
@@ -137,6 +146,7 @@ class BaseConfig:
         if 'dtype' in state and isinstance(state['dtype'], str):
             state['dtype'] = _deserialize_dtype(state['dtype'])
         self.__dict__.update(state)
+
 
 @dataclass
 class TrainingConfig(BaseConfig):
@@ -217,6 +227,13 @@ class TrainingConfig(BaseConfig):
     # Profiling
     profiler: Optional[Dict[str, Any]] = None  # ej. {"enabled": True, "activities": ["cpu", "cuda"], "schedule": {...}}
 
+    # Memory
+    gc_collect_interval: int = 50
+
+    # Confusion matrix
+    log_confusion_matrix: bool = False
+    confusion_matrix_labels: Optional[List[str]] = None
+
     def __post_init__(self):
         super().__post_init__()
         if self.log_to_wandb and self.wandb_project is None:
@@ -250,7 +267,7 @@ class TrainingConfig(BaseConfig):
                 raise ConfigurationError("distributed_world_size must be >= 1")
         if self.mixed_precision_dtype == MixedPrecisionDtype.FP8:
             try:
-                import transformer_engine.pytorch as te
+                import transformer_engine.pytorch as te  # noqa
             except ImportError:
                 raise ConfigurationError("FP8 requires NVIDIA Transformer Engine installed.")
 
@@ -285,6 +302,7 @@ class TrainingConfig(BaseConfig):
                 restored_callbacks.append(cb)
             state['callbacks'] = restored_callbacks
         super().__setstate__(state)
+
 
 @dataclass
 class BenchmarkConfig(BaseConfig):
