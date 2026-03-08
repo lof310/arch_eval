@@ -250,44 +250,8 @@
           <section id="user-guide">
 <h1>User Guide<a class="headerlink" href="#user-guide" title="Link to this heading">¶</a></h1>
 <p>This guide walks you through the main features of <strong>arch_eval</strong> and shows how to use them effectively.</p>
-<nav class="contents local" id="contents">
-<p class="topic-title">Contents</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="#installation" id="id1">Installation</a></p></li>
-<li><p><a class="reference internal" href="#core-concepts" id="id2">Core Concepts</a></p></li>
-<li><p><a class="reference internal" href="#basic-training" id="id3">Basic Training</a></p>
-<ul>
-<li><p><a class="reference internal" href="#explanation" id="id4">Explanation</a></p></li>
-</ul>
-</li>
-<li><p><a class="reference internal" href="#configuration-deep-dive" id="id5">Configuration Deep Dive</a></p>
-<ul>
-<li><p><a class="reference internal" href="#data-specification" id="id6">Data Specification</a></p></li>
-<li><p><a class="reference internal" href="#device-and-precision" id="id7">Device and Precision</a></p></li>
-<li><p><a class="reference internal" href="#logging-and-visualization" id="id8">Logging and Visualization</a></p></li>
-<li><p><a class="reference internal" href="#callbacks" id="id9">Callbacks</a></p></li>
-</ul>
-</li>
-<li><p><a class="reference internal" href="#benchmarking-multiple-models" id="id10">Benchmarking Multiple Models</a></p></li>
-<li><p><a class="reference internal" href="#hyperparameter-optimization" id="id11">Hyperparameter Optimization</a></p></li>
-<li><p><a class="reference internal" href="#distributed-training" id="id12">Distributed Training</a></p></li>
-<li><p><a class="reference internal" href="#using-plugins" id="id13">Using Plugins</a></p></li>
-<li><p><a class="reference internal" href="#advanced-features" id="id14">Advanced Features</a></p>
-<ul>
-<li><p><a class="reference internal" href="#gradient-checkpointing" id="id15">Gradient Checkpointing</a></p></li>
-<li><p><a class="reference internal" href="#mixed-precision-with-fp8" id="id16">Mixed Precision with FP8</a></p></li>
-<li><p><a class="reference internal" href="#profiling" id="id17">Profiling</a></p></li>
-<li><p><a class="reference internal" href="#custom-loss-functions" id="id18">Custom Loss Functions</a></p></li>
-<li><p><a class="reference internal" href="#model-output-transformation" id="id19">Model Output Transformation</a></p></li>
-</ul>
-</li>
-<li><p><a class="reference internal" href="#logging-and-monitoring" id="id20">Logging and Monitoring</a></p></li>
-<li><p><a class="reference internal" href="#best-practices" id="id21">Best Practices</a></p></li>
-<li><p><a class="reference internal" href="#next-steps" id="id22">Next Steps</a></p></li>
-</ul>
-</nav>
 <section id="installation">
-<h2><a class="toc-backref" href="#id1" role="doc-backlink">Installation</a><a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Clone the repository</span>
 git<span class="w"> </span>clone<span class="w"> </span>--depth<span class="o">=</span><span class="m">1</span><span class="w"> </span>https://github.com/lof310/arch_eval.git
 <span class="nb">cd</span><span class="w"> </span>arch_eval
@@ -311,7 +275,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </ul>
 </section>
 <section id="core-concepts">
-<h2><a class="toc-backref" href="#id2" role="doc-backlink">Core Concepts</a><a class="headerlink" href="#core-concepts" title="Link to this heading">¶</a></h2>
+<h2>Core Concepts<a class="headerlink" href="#core-concepts" title="Link to this heading">¶</a></h2>
 <p>arch_eval is built around a few central objects:</p>
 <ul class="simple">
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">TrainingConfig</span></code></strong> – holds all parameters for a single training run.</p></li>
@@ -323,7 +287,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 <p>All configuration is done via dataclasses, making it easy to serialise and share.</p>
 </section>
 <section id="basic-training">
-<h2><a class="toc-backref" href="#id3" role="doc-backlink">Basic Training</a><a class="headerlink" href="#basic-training" title="Link to this heading">¶</a></h2>
+<h2>Basic Training<a class="headerlink" href="#basic-training" title="Link to this heading">¶</a></h2>
 <p>Here’s the simplest possible training script:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">Trainer</span><span class="p">,</span> <span class="n">TrainingConfig</span>
@@ -363,7 +327,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </pre></div>
 </div>
 <section id="explanation">
-<h3><a class="toc-backref" href="#id4" role="doc-backlink">Explanation</a><a class="headerlink" href="#explanation" title="Link to this heading">¶</a></h3>
+<h3>Explanation<a class="headerlink" href="#explanation" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">dataset=&quot;synthetic</span> <span class="pre">classification&quot;</span></code> tells the library to generate a synthetic classification dataset.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">dataset_params</span></code> are passed to <code class="docutils literal notranslate"><span class="pre">sklearn.datasets.make_classification</span></code>.</p></li>
@@ -374,10 +338,10 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </section>
 </section>
 <section id="configuration-deep-dive">
-<h2><a class="toc-backref" href="#id5" role="doc-backlink">Configuration Deep Dive</a><a class="headerlink" href="#configuration-deep-dive" title="Link to this heading">¶</a></h2>
+<h2>Configuration Deep Dive<a class="headerlink" href="#configuration-deep-dive" title="Link to this heading">¶</a></h2>
 <p>All configuration classes inherit from <code class="docutils literal notranslate"><span class="pre">BaseConfig</span></code>, which provides common fields. Below are the most important ones.</p>
 <section id="data-specification">
-<h3><a class="toc-backref" href="#id6" role="doc-backlink">Data Specification</a><a class="headerlink" href="#data-specification" title="Link to this heading">¶</a></h3>
+<h3>Data Specification<a class="headerlink" href="#data-specification" title="Link to this heading">¶</a></h3>
 <p>You can specify data in many ways:</p>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
@@ -411,7 +375,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 <p>For distributed training, you can also shard datasets using <code class="docutils literal notranslate"><span class="pre">dataset_shard</span> <span class="pre">=</span> <span class="pre">{&quot;num_shards&quot;:</span> <span class="pre">4,</span> <span class="pre">&quot;shard_id&quot;:</span> <span class="pre">rank}</span></code>.</p>
 </section>
 <section id="device-and-precision">
-<h3><a class="toc-backref" href="#id7" role="doc-backlink">Device and Precision</a><a class="headerlink" href="#device-and-precision" title="Link to this heading">¶</a></h3>
+<h3>Device and Precision<a class="headerlink" href="#device-and-precision" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">device</span></code> – auto‑selects <code class="docutils literal notranslate"><span class="pre">&quot;cuda&quot;</span></code> if available, else <code class="docutils literal notranslate"><span class="pre">&quot;cpu&quot;</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">dtype</span></code> – default <code class="docutils literal notranslate"><span class="pre">torch.float32</span></code>.</p></li>
@@ -419,7 +383,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </ul>
 </section>
 <section id="logging-and-visualization">
-<h3><a class="toc-backref" href="#id8" role="doc-backlink">Logging and Visualization</a><a class="headerlink" href="#logging-and-visualization" title="Link to this heading">¶</a></h3>
+<h3>Logging and Visualization<a class="headerlink" href="#logging-and-visualization" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">log_interval</span></code> – how often to print to console (steps).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">viz_interval</span></code> – how often to update the realtime window.</p></li>
@@ -429,7 +393,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </ul>
 </section>
 <section id="callbacks">
-<h3><a class="toc-backref" href="#id9" role="doc-backlink">Callbacks</a><a class="headerlink" href="#callbacks" title="Link to this heading">¶</a></h3>
+<h3>Callbacks<a class="headerlink" href="#callbacks" title="Link to this heading">¶</a></h3>
 <p>Callbacks are passed via the <code class="docutils literal notranslate"><span class="pre">callbacks</span></code> list. Built‑in callbacks:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">EarlyStopping</span><span class="p">,</span> <span class="n">ModelCheckpoint</span><span class="p">,</span> <span class="n">TensorBoardLogger</span>
 
@@ -444,7 +408,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </section>
 </section>
 <section id="benchmarking-multiple-models">
-<h2><a class="toc-backref" href="#id10" role="doc-backlink">Benchmarking Multiple Models</a><a class="headerlink" href="#benchmarking-multiple-models" title="Link to this heading">¶</a></h2>
+<h2>Benchmarking Multiple Models<a class="headerlink" href="#benchmarking-multiple-models" title="Link to this heading">¶</a></h2>
 <p>To compare several architectures, use <code class="docutils literal notranslate"><span class="pre">Benchmark</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">Benchmark</span><span class="p">,</span> <span class="n">BenchmarkConfig</span>
 
@@ -474,7 +438,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </ul>
 </section>
 <section id="hyperparameter-optimization">
-<h2><a class="toc-backref" href="#id11" role="doc-backlink">Hyperparameter Optimization</a><a class="headerlink" href="#hyperparameter-optimization" title="Link to this heading">¶</a></h2>
+<h2>Hyperparameter Optimization<a class="headerlink" href="#hyperparameter-optimization" title="Link to this heading">¶</a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">HyperparameterOptimizer</span></code> class provides grid and random search:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparameterOptimizer</span><span class="p">,</span> <span class="n">TrainingConfig</span>
 
@@ -514,7 +478,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </ul>
 </section>
 <section id="distributed-training">
-<h2><a class="toc-backref" href="#id12" role="doc-backlink">Distributed Training</a><a class="headerlink" href="#distributed-training" title="Link to this heading">¶</a></h2>
+<h2>Distributed Training<a class="headerlink" href="#distributed-training" title="Link to this heading">¶</a></h2>
 <p>arch_eval supports three distributed backends:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">DATAPARALLEL</span></code> – <code class="docutils literal notranslate"><span class="pre">torch.nn.DataParallel</span></code> (simple, but slower due to GIL)</p></li>
@@ -541,7 +505,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 <p>In the script, each process will have a different rank; the trainer automatically handles the wrapping and data sharding if you set <code class="docutils literal notranslate"><span class="pre">dataset_shard</span></code> accordingly.</p>
 </section>
 <section id="using-plugins">
-<h2><a class="toc-backref" href="#id13" role="doc-backlink">Using Plugins</a><a class="headerlink" href="#using-plugins" title="Link to this heading">¶</a></h2>
+<h2>Using Plugins<a class="headerlink" href="#using-plugins" title="Link to this heading">¶</a></h2>
 <p>Plugins are external modules that can register global hooks. They are discovered automatically if their module name starts with <code class="docutils literal notranslate"><span class="pre">arch_eval_plugin_</span></code> or ends with <code class="docutils literal notranslate"><span class="pre">_plugin</span></code>.</p>
 <p>To create a plugin:</p>
 <ol class="arabic simple">
@@ -566,9 +530,9 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </div>
 </section>
 <section id="advanced-features">
-<h2><a class="toc-backref" href="#id14" role="doc-backlink">Advanced Features</a><a class="headerlink" href="#advanced-features" title="Link to this heading">¶</a></h2>
+<h2>Advanced Features<a class="headerlink" href="#advanced-features" title="Link to this heading">¶</a></h2>
 <section id="gradient-checkpointing">
-<h3><a class="toc-backref" href="#id15" role="doc-backlink">Gradient Checkpointing</a><a class="headerlink" href="#gradient-checkpointing" title="Link to this heading">¶</a></h3>
+<h3>Gradient Checkpointing<a class="headerlink" href="#gradient-checkpointing" title="Link to this heading">¶</a></h3>
 <p>Enable to reduce memory for large models:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span><span class="o">.</span><span class="n">gradient_checkpointing</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="n">config</span><span class="o">.</span><span class="n">gradient_checkpointing_modules</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;layer1&quot;</span><span class="p">,</span> <span class="s2">&quot;layer2&quot;</span><span class="p">]</span>   <span class="c1"># optional, if you want to checkpoint only specific modules</span>
@@ -576,7 +540,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </div>
 </section>
 <section id="mixed-precision-with-fp8">
-<h3><a class="toc-backref" href="#id16" role="doc-backlink">Mixed Precision with FP8</a><a class="headerlink" href="#mixed-precision-with-fp8" title="Link to this heading">¶</a></h3>
+<h3>Mixed Precision with FP8<a class="headerlink" href="#mixed-precision-with-fp8" title="Link to this heading">¶</a></h3>
 <p>Requires NVIDIA Transformer Engine:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span><span class="o">.</span><span class="n">mixed_precision</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="n">config</span><span class="o">.</span><span class="n">mixed_precision_dtype</span> <span class="o">=</span> <span class="s2">&quot;fp8&quot;</span>
@@ -584,7 +548,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </div>
 </section>
 <section id="profiling">
-<h3><a class="toc-backref" href="#id17" role="doc-backlink">Profiling</a><a class="headerlink" href="#profiling" title="Link to this heading">¶</a></h3>
+<h3>Profiling<a class="headerlink" href="#profiling" title="Link to this heading">¶</a></h3>
 <p>Enable PyTorch profiler to trace execution:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span><span class="o">.</span><span class="n">profiler</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s2">&quot;enabled&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
@@ -596,7 +560,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </div>
 </section>
 <section id="custom-loss-functions">
-<h3><a class="toc-backref" href="#id18" role="doc-backlink">Custom Loss Functions</a><a class="headerlink" href="#custom-loss-functions" title="Link to this heading">¶</a></h3>
+<h3>Custom Loss Functions<a class="headerlink" href="#custom-loss-functions" title="Link to this heading">¶</a></h3>
 <p>You can provide your own loss function:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">my_loss</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">mse_loss</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
@@ -606,7 +570,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </div>
 </section>
 <section id="model-output-transformation">
-<h3><a class="toc-backref" href="#id19" role="doc-backlink">Model Output Transformation</a><a class="headerlink" href="#model-output-transformation" title="Link to this heading">¶</a></h3>
+<h3>Model Output Transformation<a class="headerlink" href="#model-output-transformation" title="Link to this heading">¶</a></h3>
 <p>If your model returns a tuple or a dict, you can transform it to the expected format (tensor of logits) using <code class="docutils literal notranslate"><span class="pre">model_output_transform</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="n">output</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;logits&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -617,7 +581,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </section>
 </section>
 <section id="logging-and-monitoring">
-<h2><a class="toc-backref" href="#id20" role="doc-backlink">Logging and Monitoring</a><a class="headerlink" href="#logging-and-monitoring" title="Link to this heading">¶</a></h2>
+<h2>Logging and Monitoring<a class="headerlink" href="#logging-and-monitoring" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Console logging is configured via <code class="docutils literal notranslate"><span class="pre">setup_logging(level=&quot;INFO&quot;)</span></code>.</p></li>
 <li><p>WandB integration: set <code class="docutils literal notranslate"><span class="pre">log_to_wandb=True</span></code> and <code class="docutils literal notranslate"><span class="pre">wandb_project</span></code>.</p></li>
@@ -627,7 +591,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </ul>
 </section>
 <section id="best-practices">
-<h2><a class="toc-backref" href="#id21" role="doc-backlink">Best Practices</a><a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h2>
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Use <code class="docutils literal notranslate"><span class="pre">seed</span></code> for reproducibility</strong> – set <code class="docutils literal notranslate"><span class="pre">seed=42</span></code> and optionally <code class="docutils literal notranslate"><span class="pre">deterministic=True</span></code>.</p></li>
 <li><p><strong>Start with synthetic data</strong> to quickly test your pipeline.</p></li>
@@ -639,7 +603,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </ol>
 </section>
 <section id="next-steps">
-<h2><a class="toc-backref" href="#id22" role="doc-backlink">Next Steps</a><a class="headerlink" href="#next-steps" title="Link to this heading">¶</a></h2>
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>See the <a class="reference internal" href="examples.html"><span class="std std-doc">Examples</span></a> page for complete, runnable scripts.</p></li>
 <li><p>Browse the <a class="reference internal" href="api.html"><span class="std std-doc">API Reference</span></a> for detailed signatures and parameters.</p></li>

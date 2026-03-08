@@ -2,11 +2,6 @@
 
 This page documents all public classes, functions, and configuration objects provided by **arch_eval**.
 
-```{contents} Contents
-:depth: 2
-:local:
-```
-
 ## Core Classes
 
 ### `Trainer`

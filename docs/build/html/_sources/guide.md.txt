@@ -2,11 +2,6 @@
 
 This guide walks you through the main features of **arch_eval** and shows how to use them effectively.
 
-```{contents} Contents
-:depth: 2
-:local:
-```
-
 ## Installation
 
 ```bash
