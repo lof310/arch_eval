@@ -44,7 +44,7 @@ Repository = "https://github.com/lof310/arch_eval.git"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["transformer*"]
+include = ["arch_eval*"]
 
 [tool.black]
 line-length = 120
@@ -52,7 +52,7 @@ target-version = ['py38', 'py39', 'py310', 'py311', 'py312', 'py313']
 include = '\.pyi?$'
 
 [tool.coverage.run]
-source = ["transformer"]
+source = ["arch_eval"]
 omit = ["*/tests/*", "*/test_*"]
 
 [tool.mypy]
