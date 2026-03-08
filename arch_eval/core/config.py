@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import torch
 
+from arch_eval.core.exceptions import ConfigurationError
 
 class TaskType(str, Enum):
     REGRESSION = "regression"

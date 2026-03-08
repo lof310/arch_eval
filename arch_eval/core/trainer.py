@@ -544,8 +544,17 @@ class Trainer:
         self.logger.info(f"Checkpoint saved to {path}")
         self.plugin_manager.execute_hook("on_checkpoint", self, path, is_best)
 
-    def load_checkpoint(self, path: str, load_optimizer: bool = True, load_scheduler: bool = True):
-        ckpt = torch.load(path, map_location=self.device)
+    def load_checkpoint(self, path: str, load_optimizer: bool = True, load_scheduler: bool = True, weights_only: bool = False):
+        """Load a checkpoint.
+
+        Args:
+            path: Path to the checkpoint file.
+            load_optimizer: Whether to load optimizer states.
+            load_scheduler: Whether to load scheduler states.
+            weights_only: If True, restricts unpickling to safe types.
+                For checkpoints saved by this library, set to False (default) because they contain custom classes.
+        """
+        ckpt = torch.load(path, map_location=self.device, weights_only=weights_only)
         self.model.load_state_dict(ckpt["model_state_dict"])
         if load_optimizer:
             for opt, state in zip(self.optimizers, ckpt["optimizer_state_dicts"]):
