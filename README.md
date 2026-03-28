@@ -9,6 +9,8 @@
 
 High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning models. It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
 
+> **This project is still under development**
+
 ## Features
 
 - **Unified Training Interface**: Train single models with easy to use configuration options.
