@@ -271,24 +271,24 @@ class Trainer:
                     return first
             # Otherwise use first element as logits/predictions
             output = output[0]
-        
+
         # Handle models that return dicts (common in transformers)
         if isinstance(output, dict):
             # Look for 'loss' key first, but only if it's not None
-            if 'loss' in output and output['loss'] is not None:
-                return output['loss']
+            if "loss" in output and output["loss"] is not None:
+                return output["loss"]
             # Fall back to 'logits' or first value for criterion
-            output = output.get('logits', next(iter(output.values())))
-        
+            output = output.get("logits", next(iter(output.values())))
+
         # Handle list outputs
         if isinstance(output, list) and len(output) > 0:
             output = output[0]
-        
+
         # Handle Hugging Face style output objects (e.g., CausalLMOutput, SequenceClassifierOutput)
         # These are dataclass-like objects with .loss and .logits attributes
-        if hasattr(output, 'loss') and output.loss is not None:
+        if hasattr(output, "loss") and output.loss is not None:
             return output.loss
-        
+
         # Now apply criterion to get loss if not already computed
         return self.criterion(output, targets)
 

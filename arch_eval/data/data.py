@@ -41,6 +41,7 @@ except ImportError:
 # Try to import transformers tokenizer for language modeling
 try:
     from transformers import AutoTokenizer
+
     TRANSFORMERS_AVAILABLE = True
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
@@ -99,9 +100,13 @@ class ImageDataset(Dataset):
 class VisionLanguageDataset(Dataset):
     """Dataset for vision-language tasks with image-text pairs."""
 
-    def __init__(self, images: torch.Tensor, input_ids: torch.Tensor, 
-                 attention_mask: Optional[torch.Tensor] = None,
-                 labels: Optional[torch.Tensor] = None):
+    def __init__(
+        self,
+        images: torch.Tensor,
+        input_ids: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        labels: Optional[torch.Tensor] = None,
+    ):
         self.images = images
         self.input_ids = input_ids
         self.attention_mask = attention_mask
@@ -213,9 +218,9 @@ def create_synthetic_dataset(dataset_type: str, params: Dict[str, Any]) -> Synth
 def create_synthetic_text_dataset(params: Dict[str, Any]) -> TextDataset:
     """
     Create synthetic text dataset for language modeling.
-    
+
     Generates random token sequences simulating text data for transformer training.
-    
+
     :param params: Dictionary containing:
         - vocab_size: Size of vocabulary (default: 1000)
         - seq_length: Sequence length (default: 128)
@@ -228,9 +233,9 @@ def create_synthetic_text_dataset(params: Dict[str, Any]) -> TextDataset:
     n_samples = params.get("n_samples", 1000)
     entropy = params.get("entropy", 0.8)
     random_state = params.get("random_state", 42)
-    
+
     torch.manual_seed(random_state)
-    
+
     # Generate token sequences with some structure (not purely random)
     # Lower entropy means more repeated patterns
     if entropy < 0.5:
@@ -248,20 +253,20 @@ def create_synthetic_text_dataset(params: Dict[str, Any]) -> TextDataset:
         # Add some bigram structure
         for i in range(1, seq_length):
             bias = torch.rand(n_samples) < (1 - entropy) * 0.3
-            input_ids[bias, i] = input_ids[bias, i-1]
-    
+            input_ids[bias, i] = input_ids[bias, i - 1]
+
     # Labels are shifted by one for causal language modeling
     labels = input_ids.clone()
-    
+
     return TextDataset(input_ids, labels)
 
 
 def create_synthetic_image_dataset(params: Dict[str, Any]) -> ImageDataset:
     """
     Create synthetic image dataset for vision tasks.
-    
+
     Generates random images or simple geometric patterns.
-    
+
     :param params: Dictionary containing:
         - img_size: Image size as int or tuple (H, W) (default: 32)
         - channels: Number of channels (default: 3)
@@ -278,13 +283,13 @@ def create_synthetic_image_dataset(params: Dict[str, Any]) -> ImageDataset:
     n_classes = params.get("n_classes", 10)
     pattern = params.get("pattern", "random")
     random_state = params.get("random_state", 42)
-    
+
     torch.manual_seed(random_state)
     np.random.seed(random_state)
-    
+
     images = torch.zeros(n_samples, channels, img_size[0], img_size[1])
     labels = torch.randint(0, n_classes, (n_samples,))
-    
+
     if pattern == "random":
         images = torch.rand(n_samples, channels, img_size[0], img_size[1])
     elif pattern == "gradient":
@@ -305,42 +310,42 @@ def create_synthetic_image_dataset(params: Dict[str, Any]) -> ImageDataset:
             center_x = img_size[1] // 2
             center_y = img_size[0] // 2
             size = img_size[0] // 4
-            
+
             # Different shapes based on class modulo
             shape_type = cls % 4
             color = torch.rand(channels, 1, 1)
-            
+
             if shape_type == 0:  # Square
-                img[:, center_y-size:center_y+size, center_x-size:center_x+size] = color
+                img[:, center_y - size : center_y + size, center_x - size : center_x + size] = color
             elif shape_type == 1:  # Circle
-                y_grid, x_grid = torch.meshgrid(torch.arange(img_size[0]), torch.arange(img_size[1]), indexing='ij')
-                mask = ((x_grid - center_x)**2 + (y_grid - center_y)**2) < size**2
+                y_grid, x_grid = torch.meshgrid(torch.arange(img_size[0]), torch.arange(img_size[1]), indexing="ij")
+                mask = ((x_grid - center_x) ** 2 + (y_grid - center_y) ** 2) < size**2
                 img[:, mask] = color.squeeze()
             elif shape_type == 2:  # Triangle
                 for cy in range(center_y - size, center_y + size):
                     width = int(size * (1 - abs(cy - center_y) / size))
-                    img[:, cy, max(0, center_x-width):min(img_size[1], center_x+width)] = color.squeeze()
+                    img[:, cy, max(0, center_x - width) : min(img_size[1], center_x + width)] = color.squeeze()
             else:  # Lines
                 for c in range(channels):
                     if c % 2 == 0:
                         img[c, ::2, :] = color[c].item()
                     else:
                         img[c, :, ::2] = color[c].item()
-            
+
             images[i] = img + torch.rand_like(img) * 0.05
-    
+
     # Normalize to [0, 1]
     images = images.clamp(0, 1)
-    
+
     return ImageDataset(images, labels)
 
 
 def create_synthetic_vision_language_dataset(params: Dict[str, Any]) -> VisionLanguageDataset:
     """
     Create synthetic vision-language dataset for multi-modal tasks.
-    
+
     Generates paired image and text token sequences.
-    
+
     :param params: Dictionary containing:
         - img_size: Image size (default: 32)
         - channels: Number of image channels (default: 3)
@@ -359,33 +364,33 @@ def create_synthetic_vision_language_dataset(params: Dict[str, Any]) -> VisionLa
     n_samples = params.get("n_samples", 500)
     correlation = params.get("correlation", 0.7)
     random_state = params.get("random_state", 42)
-    
+
     torch.manual_seed(random_state)
     np.random.seed(random_state)
-    
+
     # Generate images with classes
     n_classes = 10
     images = torch.rand(n_samples, channels, img_size[0], img_size[1])
     labels = torch.randint(0, n_classes, (n_samples,))
-    
+
     # Generate text tokens correlated with image class
     input_ids = torch.zeros(n_samples, seq_length, dtype=torch.long)
     attention_mask = torch.ones(n_samples, seq_length, dtype=torch.long)
-    
+
     for i in range(n_samples):
         cls = labels[i].item()
-        
+
         # Start with class-specific tokens (correlation)
         n_correlated = int(seq_length * correlation)
         if n_correlated > 0:
             # Use class as base for first tokens
             base_token = cls * (vocab_size // n_classes)
             input_ids[i, :n_correlated] = base_token + torch.randint(0, vocab_size // n_classes, (n_correlated,))
-        
+
         # Fill rest with random tokens
         if n_correlated < seq_length:
             input_ids[i, n_correlated:] = torch.randint(0, vocab_size, (seq_length - n_correlated,))
-    
+
     return VisionLanguageDataset(images, input_ids, attention_mask, labels)
 
 

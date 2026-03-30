@@ -41,7 +41,7 @@ class MetricCalculator:
         """Accumulate predictions for later confusion matrix computation (classification only)."""
         if isinstance(self.task, str) and self.task == TaskType.CLASSIFICATION:
             outputs = self.output_transform(outputs)
-            
+
             # Extract predictions from various output formats
             if isinstance(outputs, torch.Tensor):
                 preds = torch.argmax(outputs, dim=-1).cpu().numpy()
@@ -61,12 +61,12 @@ class MetricCalculator:
                         break
                 else:
                     return  # Could not find suitable tensor
-            elif hasattr(outputs, 'logits') and isinstance(outputs.logits, torch.Tensor):
+            elif hasattr(outputs, "logits") and isinstance(outputs.logits, torch.Tensor):
                 # Handle Hugging Face style output objects (CausalLMOutput, SequenceClassifierOutput, etc.)
                 preds = torch.argmax(outputs.logits, dim=-1).cpu().numpy()
             else:
                 return
-            
+
             targ = targets.cpu().numpy()
             self._all_preds.extend(preds)
             self._all_targets.extend(targ)
@@ -111,7 +111,7 @@ class MetricCalculator:
                         break
                 else:
                     out_np = np.array([])
-        elif hasattr(outputs, 'logits') and isinstance(outputs.logits, torch.Tensor):
+        elif hasattr(outputs, "logits") and isinstance(outputs.logits, torch.Tensor):
             # Handle Hugging Face style output objects (CausalLMOutput, SequenceClassifierOutput, etc.)
             out_np = outputs.logits.detach().cpu().numpy()
         else:
