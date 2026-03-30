@@ -64,7 +64,10 @@ class Trainer:
             self.model = model
 
         self.device = torch.device(config.device)
-        self.model = self.model.to(self.device).to(config.dtype)
+        self.model = self.model.to(self.device)
+        # Apply dtype conversion properly
+        if config.dtype != torch.float32:
+            self.model = self.model.to(config.dtype)
 
         self.dataset_handler = DatasetHandler(config)
         self.train_loader, self.val_loader, self.test_loader = self.dataset_handler.prepare_loaders()
@@ -166,13 +169,21 @@ class Trainer:
             targets = targets.to(self.device)
             self.model.eval()
             with torch.no_grad():
-                _ = self.model(data)
+                output = self.model(data)
+                # Handle models that return tuples or dicts (common in transformers)
+                if isinstance(output, (tuple, list)):
+                    # For models returning (logits, loss) or similar
+                    pass
+                elif isinstance(output, dict):
+                    # For models returning dict with 'logits', 'loss', etc.
+                    pass
             self.model.train()
             self.logger.info("Model validation passed.")
         except Exception as e:
             raise ModelError(
                 f"Model validation failed on a real batch: {e}. "
-                "Check that your model's input size matches the dataset features."
+                "Check that your model's input size matches the dataset features. "
+                "For transformer models, ensure the model accepts the input shape correctly."
             )
 
     def _setup_optimizers(self):
@@ -246,10 +257,40 @@ class Trainer:
             self.criterion = getattr(task, "loss_function", nn.MSELoss())
 
     def _compute_loss(self, output, targets):
-        if isinstance(output, tuple) and len(output) == 2:
-            return output[1]  # Assume second element is loss
-        else:
-            return self.criterion(output, targets)
+        """Compute loss from model output, handling various output formats."""
+        # Handle models that return tuples (e.g., (logits, loss), (loss, logits))
+        if isinstance(output, tuple):
+            # If second element is a scalar tensor, assume it's the loss
+            if len(output) >= 2:
+                second = output[1]
+                if isinstance(second, torch.Tensor) and second.numel() == 1:
+                    return second
+                # Check if first element is the loss (some models return (loss, ...))
+                first = output[0]
+                if isinstance(first, torch.Tensor) and first.numel() == 1:
+                    return first
+            # Otherwise use first element as logits/predictions
+            output = output[0]
+        
+        # Handle models that return dicts (common in transformers)
+        if isinstance(output, dict):
+            # Look for 'loss' key first, but only if it's not None
+            if 'loss' in output and output['loss'] is not None:
+                return output['loss']
+            # Fall back to 'logits' or first value for criterion
+            output = output.get('logits', next(iter(output.values())))
+        
+        # Handle list outputs
+        if isinstance(output, list) and len(output) > 0:
+            output = output[0]
+        
+        # Handle Hugging Face style output objects (e.g., CausalLMOutput, SequenceClassifierOutput)
+        # These are dataclass-like objects with .loss and .logits attributes
+        if hasattr(output, 'loss') and output.loss is not None:
+            return output.loss
+        
+        # Now apply criterion to get loss if not already computed
+        return self.criterion(output, targets)
 
     @auto_device
     def train(self) -> Dict[str, List[float]]:

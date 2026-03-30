@@ -41,12 +41,32 @@ class MetricCalculator:
         """Accumulate predictions for later confusion matrix computation (classification only)."""
         if isinstance(self.task, str) and self.task == TaskType.CLASSIFICATION:
             outputs = self.output_transform(outputs)
+            
+            # Extract predictions from various output formats
             if isinstance(outputs, torch.Tensor):
                 preds = torch.argmax(outputs, dim=-1).cpu().numpy()
             elif isinstance(outputs, (tuple, list)):
-                preds = torch.argmax(outputs[0], dim=-1).cpu().numpy()
+                # Find the logits tensor in tuple/list
+                for item in outputs:
+                    if isinstance(item, torch.Tensor) and item.ndim > 1:
+                        preds = torch.argmax(item, dim=-1).cpu().numpy()
+                        break
+                else:
+                    return  # Could not find suitable tensor
+            elif isinstance(outputs, dict):
+                # Look for common keys
+                for key in ["logits", "pred", "output", "predictions"]:
+                    if key in outputs and isinstance(outputs[key], torch.Tensor):
+                        preds = torch.argmax(outputs[key], dim=-1).cpu().numpy()
+                        break
+                else:
+                    return  # Could not find suitable tensor
+            elif hasattr(outputs, 'logits') and isinstance(outputs.logits, torch.Tensor):
+                # Handle Hugging Face style output objects (CausalLMOutput, SequenceClassifierOutput, etc.)
+                preds = torch.argmax(outputs.logits, dim=-1).cpu().numpy()
             else:
                 return
+            
             targ = targets.cpu().numpy()
             self._all_preds.extend(preds)
             self._all_targets.extend(targ)
@@ -62,18 +82,38 @@ class MetricCalculator:
         metrics = {f"{split}_loss": loss}
         outputs = self.output_transform(outputs)
 
-        # Extract numpy arrays
+        # Extract numpy arrays - handle various output formats
         if isinstance(outputs, torch.Tensor):
             out_np = outputs.detach().cpu().numpy()
         elif isinstance(outputs, (tuple, list)):
-            out_np = outputs[0].detach().cpu().numpy()
+            # Try to find logits in tuple/list output
+            # Common patterns: (logits,), (logits, loss), (loss, logits), (logits, aux_outputs)
+            for item in outputs:
+                if isinstance(item, torch.Tensor):
+                    # Prefer tensors that look like logits (not scalar losses)
+                    if item.numel() > 1 or item.ndim > 0:
+                        out_np = item.detach().cpu().numpy()
+                        break
+            else:
+                # Fallback to first element
+                out_np = outputs[0].detach().cpu().numpy() if outputs[0] is not None else np.array([])
         elif isinstance(outputs, dict):
-            for key in ["logits", "pred", "output"]:
-                if key in outputs:
+            # Look for common keys in transformer models
+            for key in ["logits", "pred", "output", "predictions", "hidden_states"]:
+                if key in outputs and isinstance(outputs[key], torch.Tensor):
                     out_np = outputs[key].detach().cpu().numpy()
                     break
             else:
-                out_np = next(iter(outputs.values())).detach().cpu().numpy()
+                # Fall back to first tensor value
+                for v in outputs.values():
+                    if isinstance(v, torch.Tensor):
+                        out_np = v.detach().cpu().numpy()
+                        break
+                else:
+                    out_np = np.array([])
+        elif hasattr(outputs, 'logits') and isinstance(outputs.logits, torch.Tensor):
+            # Handle Hugging Face style output objects (CausalLMOutput, SequenceClassifierOutput, etc.)
+            out_np = outputs.logits.detach().cpu().numpy()
         else:
             out_np = np.array(outputs)
 
@@ -104,16 +144,17 @@ class MetricCalculator:
                 logger.debug(f"AUC failed: {e}")
                 auc = 0.5
             top5 = None
-            if out.shape[1] >= 5:
+            # Only compute top-5 accuracy if we have more than 5 classes
+            if out.shape[1] > 5:
                 try:
-                    top5 = top_k_accuracy_score(targ, out, k=5)
-                except:
+                    top5 = top_k_accuracy_score(targ, out, k=5, labels=list(range(out.shape[1])))
+                except Exception:
                     pass
         else:
             preds = (out > 0.5).astype(int)
             try:
                 auc = roc_auc_score(targ, out)
-            except:
+            except Exception:
                 auc = 0.5
             top5 = None
 

@@ -322,6 +322,144 @@ def transform(output):
 config.model_output_transform = transform
 ```
 
+## Transformer and Custom Model Compatibility
+
+arch_eval is designed to work with any PyTorch model architecture, including transformer models from Hugging Face or custom implementations. The library automatically handles various output formats:
+
+### Supported Output Formats
+
+1. **Tensor output** (standard): `return logits`  # shape: (batch, num_classes)
+2. **Tuple output**: `return (logits, loss)` or `return (loss, logits)`
+3. **Dict output** (Hugging Face style): `return {"logits": logits, "loss": loss}`
+4. **Dict with only logits**: `return {"logits": logits}`
+5. **Hugging Face Output Objects**: Return instances of `CausalLMOutput`, `SequenceClassifierOutput`, etc. from `transformers.modeling_outputs`
+
+The trainer automatically detects and extracts:
+- Loss values from tuples, dicts, or objects with `.loss` attribute (preferring explicit 'loss' keys)
+- Logits/predictions for metric calculation from tensors, dicts, or objects with `.logits` attribute
+
+### Example: Training a Transformer Model
+
+```python
+import torch.nn as nn
+from arch_eval import Trainer, TrainingConfig
+
+class SimpleTransformer(nn.Module):
+    def __init__(self, vocab_size=1000, d_model=128, nhead=4, num_classes=10):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, d_model)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, batch_first=True)
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=2)
+        self.classifier = nn.Linear(d_model, num_classes)
+        
+    def forward(self, x):
+        # x shape: (batch, seq_len)
+        emb = self.embedding(x)
+        out = self.transformer(emb)
+        pooled = out.mean(dim=1)  # Mean pooling over sequence
+        return {"logits": self.classifier(pooled)}  # Dict output like HF models
+
+# Create text classification dataset
+seq_len, vocab_size = 64, 1000
+X = torch.randint(0, vocab_size, (500, seq_len))
+y = torch.randint(0, 10, (500,))
+
+config = TrainingConfig(
+    dataset=(X, y),
+    training_args={"num_epochs": 5, "batch_size": 16},
+    task="classification",
+    realtime=False
+)
+
+model = SimpleTransformer()
+trainer = Trainer(model, config)
+history = trainer.train()
+```
+
+### Example: Training with lof310/transformer or Hugging Face Models
+
+The library is fully compatible with the [lof310/transformer](https://github.com/lof310/transformer) library and Hugging Face Transformers:
+
+```python
+from transformer import Transformer, TransformerConfig  # lof310/transformer
+from arch_eval import Trainer, TrainingConfig
+
+# Create transformer config
+model_config = TransformerConfig(
+    vocab_size=32000,
+    d_model=256,
+    n_heads=8,
+    n_layer=4,
+    d_ff=512,
+    max_seq_len=128,
+)
+
+# Create model - returns CausalLMOutput(loss=..., logits=...)
+model = Transformer(model_config)
+
+# Prepare language modeling dataset
+input_ids = torch.randint(0, 32000, (1000, 128))
+labels = input_ids.clone()  # For next token prediction
+
+config = TrainingConfig(
+    dataset=(input_ids, labels),
+    training_args={"num_epochs": 3, "batch_size": 8},
+    task="next-token-prediction",
+    realtime=False
+)
+
+trainer = Trainer(model, config)
+history = trainer.train()  # Works seamlessly!
+```
+
+Similarly for Hugging Face models:
+
+```python
+from transformers import AutoModelForSequenceClassification
+from arch_eval import Trainer, TrainingConfig
+
+model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=10)
+
+# The model returns dict with 'loss' and 'logits' keys
+config = TrainingConfig(
+    dataset=(input_ids, attention_mask, labels),
+    training_args={"num_epochs": 3, "batch_size": 16},
+    task="classification",
+)
+
+trainer = Trainer(model, config)
+history = trainer.train()
+```
+
+### Custom Loss Handling
+
+For models that compute their own loss internally (common in transformers), the trainer will use the provided loss value when available:
+
+```python
+# Model returning (logits, loss)
+def forward(self, x, labels=None):
+    ...
+    if labels is not None:
+        loss = criterion(logits, labels)
+        return (logits, loss)  # Trainer uses this loss directly
+    return (logits,)
+
+# Model returning dict with loss
+def forward(self, x, labels=None):
+    ...
+    result = {"logits": logits}
+    if labels is not None:
+        result["loss"] = criterion(logits, labels)
+    return result  # Trainer uses result["loss"] if present
+```
+
+This flexibility ensures compatibility with:
+- Hugging Face Transformers (`AutoModelForSequenceClassification`, etc.)
+- Custom transformer architectures
+- Models with auxiliary losses
+- Multi-task learning setups
+
+
 ## Logging and Monitoring
 
 - Console logging is configured via `setup_logging(level="INFO")`.
