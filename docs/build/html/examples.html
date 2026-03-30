@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Contributing" href="contributing.html"><link rel="prev" title="API Reference" href="api.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Usage Examples - arch_eval 0.1.0 documentation</title>
+        <title>Usage Examples - arch_eval 0.2.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">arch_eval 0.1.0 documentation</div></a>
+      <a href="index.html"><div class="brand">arch_eval 0.2.0 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
   
-  <span class="sidebar-brand-text">arch_eval 0.1.0 documentation</span>
+  <span class="sidebar-brand-text">arch_eval 0.2.0 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -250,23 +250,8 @@
           <section id="usage-examples">
 <h1>Usage Examples<a class="headerlink" href="#usage-examples" title="Link to this heading">¶</a></h1>
 <p>This page provides several complete examples demonstrating the main features of <strong>arch_eval</strong>.</p>
-<nav class="contents local" id="examples">
-<p class="topic-title">Examples</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="#basic-training-with-mnist" id="id1">Basic Training with MNIST</a></p></li>
-<li><p><a class="reference internal" href="#benchmarking-two-mlp-variants" id="id2">Benchmarking Two MLP Variants</a></p></li>
-<li><p><a class="reference internal" href="#hyperparameter-search-with-random-search" id="id3">Hyperparameter Search with Random Search</a></p></li>
-<li><p><a class="reference internal" href="#using-callbacks-early-stopping-and-checkpointing" id="id4">Using Callbacks – Early Stopping and Checkpointing</a></p></li>
-<li><p><a class="reference internal" href="#custom-dataset-from-numpy-arrays" id="id5">Custom Dataset from NumPy Arrays</a></p></li>
-<li><p><a class="reference internal" href="#distributed-training-with-ddp" id="id6">Distributed Training with DDP</a></p></li>
-<li><p><a class="reference internal" href="#profiling-and-video-recording" id="id7">Profiling and Video Recording</a></p></li>
-<li><p><a class="reference internal" href="#using-a-huggingface-dataset" id="id8">Using a HuggingFace Dataset</a></p></li>
-<li><p><a class="reference internal" href="#custom-callback-logging-to-file" id="id9">Custom Callback – Logging to File</a></p></li>
-<li><p><a class="reference internal" href="#using-the-plugin-system" id="id10">Using the Plugin System</a></p></li>
-</ul>
-</nav>
 <section id="basic-training-with-mnist">
-<h2><a class="toc-backref" href="#id1" role="doc-backlink">Basic Training with MNIST</a><a class="headerlink" href="#basic-training-with-mnist" title="Link to this heading">¶</a></h2>
+<h2>Basic Training with MNIST<a class="headerlink" href="#basic-training-with-mnist" title="Link to this heading">¶</a></h2>
 <p>Train a simple CNN on MNIST using torchvision data.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
@@ -324,7 +309,7 @@
 </div>
 </section>
 <section id="benchmarking-two-mlp-variants">
-<h2><a class="toc-backref" href="#id2" role="doc-backlink">Benchmarking Two MLP Variants</a><a class="headerlink" href="#benchmarking-two-mlp-variants" title="Link to this heading">¶</a></h2>
+<h2>Benchmarking Two MLP Variants<a class="headerlink" href="#benchmarking-two-mlp-variants" title="Link to this heading">¶</a></h2>
 <p>Compare a small and a large MLP on synthetic data.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">Benchmark</span><span class="p">,</span> <span class="n">BenchmarkConfig</span>
@@ -372,7 +357,7 @@
 </div>
 </section>
 <section id="hyperparameter-search-with-random-search">
-<h2><a class="toc-backref" href="#id3" role="doc-backlink">Hyperparameter Search with Random Search</a><a class="headerlink" href="#hyperparameter-search-with-random-search" title="Link to this heading">¶</a></h2>
+<h2>Hyperparameter Search with Random Search<a class="headerlink" href="#hyperparameter-search-with-random-search" title="Link to this heading">¶</a></h2>
 <p>Optimize learning rate and hidden size for a regression model.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
@@ -430,7 +415,7 @@
 </div>
 </section>
 <section id="using-callbacks-early-stopping-and-checkpointing">
-<h2><a class="toc-backref" href="#id4" role="doc-backlink">Using Callbacks – Early Stopping and Checkpointing</a><a class="headerlink" href="#using-callbacks-early-stopping-and-checkpointing" title="Link to this heading">¶</a></h2>
+<h2>Using Callbacks – Early Stopping and Checkpointing<a class="headerlink" href="#using-callbacks-early-stopping-and-checkpointing" title="Link to this heading">¶</a></h2>
 <p>Train a model with early stopping and model checkpointing.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">Trainer</span><span class="p">,</span> <span class="n">TrainingConfig</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">EarlyStopping</span><span class="p">,</span> <span class="n">ModelCheckpoint</span>
@@ -459,7 +444,7 @@
 </div>
 </section>
 <section id="custom-dataset-from-numpy-arrays">
-<h2><a class="toc-backref" href="#id5" role="doc-backlink">Custom Dataset from NumPy Arrays</a><a class="headerlink" href="#custom-dataset-from-numpy-arrays" title="Link to this heading">¶</a></h2>
+<h2>Custom Dataset from NumPy Arrays<a class="headerlink" href="#custom-dataset-from-numpy-arrays" title="Link to this heading">¶</a></h2>
 <p>Use your own data stored as NumPy arrays.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
@@ -482,7 +467,7 @@
 </div>
 </section>
 <section id="distributed-training-with-ddp">
-<h2><a class="toc-backref" href="#id6" role="doc-backlink">Distributed Training with DDP</a><a class="headerlink" href="#distributed-training-with-ddp" title="Link to this heading">¶</a></h2>
+<h2>Distributed Training with DDP<a class="headerlink" href="#distributed-training-with-ddp" title="Link to this heading">¶</a></h2>
 <p>Launch script using <code class="docutils literal notranslate"><span class="pre">torchrun</span></code>. Assume the script is <code class="docutils literal notranslate"><span class="pre">train_ddp.py</span></code>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># train_ddp.py</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
@@ -525,7 +510,7 @@
 </div>
 </section>
 <section id="profiling-and-video-recording">
-<h2><a class="toc-backref" href="#id7" role="doc-backlink">Profiling and Video Recording</a><a class="headerlink" href="#profiling-and-video-recording" title="Link to this heading">¶</a></h2>
+<h2>Profiling and Video Recording<a class="headerlink" href="#profiling-and-video-recording" title="Link to this heading">¶</a></h2>
 <p>Enable the profiler and record a video of the loss curve.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">config</span> <span class="o">=</span> <span class="n">TrainingConfig</span><span class="p">(</span>
     <span class="n">dataset</span><span class="o">=</span><span class="s2">&quot;synthetic classification&quot;</span><span class="p">,</span>
@@ -549,7 +534,7 @@
 </div>
 </section>
 <section id="using-a-huggingface-dataset">
-<h2><a class="toc-backref" href="#id8" role="doc-backlink">Using a HuggingFace Dataset</a><a class="headerlink" href="#using-a-huggingface-dataset" title="Link to this heading">¶</a></h2>
+<h2>Using a HuggingFace Dataset<a class="headerlink" href="#using-a-huggingface-dataset" title="Link to this heading">¶</a></h2>
 <p>Load the IMDB dataset from Hugging Face and train a simple text classifier.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">datasets</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dataset</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">Trainer</span><span class="p">,</span> <span class="n">TrainingConfig</span>
@@ -584,7 +569,7 @@
 <p><em>(Note: This is a simplified example; real text classification requires proper tokenization and possibly a collate function.)</em></p>
 </section>
 <section id="custom-callback-logging-to-file">
-<h2><a class="toc-backref" href="#id9" role="doc-backlink">Custom Callback – Logging to File</a><a class="headerlink" href="#custom-callback-logging-to-file" title="Link to this heading">¶</a></h2>
+<h2>Custom Callback – Logging to File<a class="headerlink" href="#custom-callback-logging-to-file" title="Link to this heading">¶</a></h2>
 <p>Create a callback that writes metrics to a CSV file.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">csv</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callback</span>
@@ -615,7 +600,7 @@
 </div>
 </section>
 <section id="using-the-plugin-system">
-<h2><a class="toc-backref" href="#id10" role="doc-backlink">Using the Plugin System</a><a class="headerlink" href="#using-the-plugin-system" title="Link to this heading">¶</a></h2>
+<h2>Using the Plugin System<a class="headerlink" href="#using-the-plugin-system" title="Link to this heading">¶</a></h2>
 <p>Create a simple plugin that prints a message at the start of each epoch.</p>
 <p><strong>File: <code class="docutils literal notranslate"><span class="pre">my_plugin.py</span></code></strong> (place it in your Python path)</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.plugins</span><span class="w"> </span><span class="kn">import</span> <span class="n">hook</span>
@@ -708,7 +693,7 @@
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=01f34227"></script>
+</div><script src="_static/documentation_options.js?v=938c9ccc"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>

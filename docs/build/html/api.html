@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Usage Examples" href="examples.html"><link rel="prev" title="User Guide" href="guide.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>API Reference - arch_eval 0.1.0 documentation</title>
+        <title>API Reference - arch_eval 0.2.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">arch_eval 0.1.0 documentation</div></a>
+      <a href="index.html"><div class="brand">arch_eval 0.2.0 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
   
-  <span class="sidebar-brand-text">arch_eval 0.1.0 documentation</span>
+  <span class="sidebar-brand-text">arch_eval 0.2.0 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -1408,8 +1408,10 @@ weights_only: If True, restricts unpickling to safe types.</p>
 
 <p>Internal class used by <code class="docutils literal notranslate"><span class="pre">Trainer</span></code> to prepare data loaders. Usually you do not need to instantiate it directly.</p>
 </section>
+<section id="synthetic-dataset-classes">
+<h3>Synthetic Dataset Classes<a class="headerlink" href="#synthetic-dataset-classes" title="Link to this heading">¶</a></h3>
 <section id="syntheticdataset">
-<h3><code class="docutils literal notranslate"><span class="pre">SyntheticDataset</span></code><a class="headerlink" href="#syntheticdataset" title="Link to this heading">¶</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">SyntheticDataset</span></code><a class="headerlink" href="#syntheticdataset" title="Link to this heading">¶</a></h4>
 <dl class="py class">
 <dt class="sig sig-object py" id="arch_eval.data.SyntheticDataset">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">arch_eval.data.</span></span><span class="sig-name descname"><span class="pre">SyntheticDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/arch_eval/data/data.html#SyntheticDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#arch_eval.data.SyntheticDataset" title="Link to this definition">¶</a></dt>
@@ -1438,14 +1440,284 @@ weights_only: If True, restricts unpickling to safe types.</p>
 
 </dd></dl>
 
-<p>A simple <code class="docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code> wrapping synthetic data tensors.</p>
+<p>A simple <code class="docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code> wrapping synthetic data tensors for traditional ML tasks (classification, regression, etc.).</p>
 </section>
+<section id="textdataset">
+<h4><code class="docutils literal notranslate"><span class="pre">TextDataset</span></code><a class="headerlink" href="#textdataset" title="Link to this heading">¶</a></h4>
+<dl class="py class">
+<dt class="sig sig-object py" id="arch_eval.data.TextDataset">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">arch_eval.data.</span></span><span class="sig-name descname"><span class="pre">TextDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_ids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/arch_eval/data/data.html#TextDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#arch_eval.data.TextDataset" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></p>
+<p>Dataset for language modeling with token sequences.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_ids</strong> (<em>Tensor</em>)</p></li>
+<li><p><strong>labels</strong> (<em>Tensor</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="arch_eval.data.TextDataset.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_ids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/arch_eval/data/data.html#TextDataset.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#arch_eval.data.TextDataset.__init__" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_ids</strong> (<em>Tensor</em>)</p></li>
+<li><p><strong>labels</strong> (<em>Tensor</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<p>Dataset for language modeling with token sequences. Returns <code class="docutils literal notranslate"><span class="pre">(input_ids,</span> <span class="pre">labels)</span></code> pairs suitable for transformer training.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">TextDataset</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="n">input_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">128</span><span class="p">))</span>  <span class="c1"># 1000 samples, seq length 128</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">input_ids</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>  <span class="c1"># For causal LM, labels are same as input</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">TextDataset</span><span class="p">(</span><span class="n">input_ids</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="imagedataset">
+<h4><code class="docutils literal notranslate"><span class="pre">ImageDataset</span></code><a class="headerlink" href="#imagedataset" title="Link to this heading">¶</a></h4>
+<dl class="py class">
+<dt class="sig sig-object py" id="arch_eval.data.ImageDataset">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">arch_eval.data.</span></span><span class="sig-name descname"><span class="pre">ImageDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/arch_eval/data/data.html#ImageDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#arch_eval.data.ImageDataset" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></p>
+<p>Dataset for vision tasks with images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>images</strong> (<em>Tensor</em>)</p></li>
+<li><p><strong>labels</strong> (<em>Tensor</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="arch_eval.data.ImageDataset.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/arch_eval/data/data.html#ImageDataset.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#arch_eval.data.ImageDataset.__init__" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>images</strong> (<em>Tensor</em>)</p></li>
+<li><p><strong>labels</strong> (<em>Tensor</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<p>Dataset for vision tasks with images. Returns <code class="docutils literal notranslate"><span class="pre">(images,</span> <span class="pre">labels)</span></code> pairs with optional transforms.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">ImageDataset</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="n">images</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>  <span class="c1"># 1000 RGB images, 32x32</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="p">(</span><span class="mi">1000</span><span class="p">,))</span>  <span class="c1"># 10 classes</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">ImageDataset</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="visionlanguagedataset">
+<h4><code class="docutils literal notranslate"><span class="pre">VisionLanguageDataset</span></code><a class="headerlink" href="#visionlanguagedataset" title="Link to this heading">¶</a></h4>
+<dl class="py class">
+<dt class="sig sig-object py" id="arch_eval.data.VisionLanguageDataset">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">arch_eval.data.</span></span><span class="sig-name descname"><span class="pre">VisionLanguageDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_ids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/arch_eval/data/data.html#VisionLanguageDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#arch_eval.data.VisionLanguageDataset" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Dataset</span></code></p>
+<p>Dataset for vision-language tasks with image-text pairs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>images</strong> (<em>Tensor</em>)</p></li>
+<li><p><strong>input_ids</strong> (<em>Tensor</em>)</p></li>
+<li><p><strong>attention_mask</strong> (<em>Tensor</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>labels</strong> (<em>Tensor</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="arch_eval.data.VisionLanguageDataset.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">images</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_ids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attention_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/arch_eval/data/data.html#VisionLanguageDataset.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#arch_eval.data.VisionLanguageDataset.__init__" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>images</strong> (<em>Tensor</em>)</p></li>
+<li><p><strong>input_ids</strong> (<em>Tensor</em>)</p></li>
+<li><p><strong>attention_mask</strong> (<em>Tensor</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>labels</strong> (<em>Tensor</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<p>Dataset for vision-language multi-modal tasks. Returns dictionaries with <code class="docutils literal notranslate"><span class="pre">pixel_values</span></code>, <code class="docutils literal notranslate"><span class="pre">input_ids</span></code>, <code class="docutils literal notranslate"><span class="pre">attention_mask</span></code>, and <code class="docutils literal notranslate"><span class="pre">labels</span></code>.</p>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">VisionLanguageDataset</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="n">images</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>  <span class="c1"># 500 images</span>
+<span class="n">input_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="mi">64</span><span class="p">))</span>  <span class="c1"># Token sequences</span>
+<span class="n">attention_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="p">(</span><span class="mi">500</span><span class="p">,))</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">VisionLanguageDataset</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="synthetic-dataset-generation-functions">
+<h3>Synthetic Dataset Generation Functions<a class="headerlink" href="#synthetic-dataset-generation-functions" title="Link to this heading">¶</a></h3>
 <section id="create-synthetic-dataset">
-<h3><code class="docutils literal notranslate"><span class="pre">create_synthetic_dataset</span></code><a class="headerlink" href="#create-synthetic-dataset" title="Link to this heading">¶</a></h3>
+<h4><code class="docutils literal notranslate"><span class="pre">create_synthetic_dataset</span></code><a class="headerlink" href="#create-synthetic-dataset" title="Link to this heading">¶</a></h4>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">create_synthetic_dataset</span><span class="p">(</span><span class="n">dataset_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">SyntheticDataset</span>
 </pre></div>
 </div>
-<p>Creates a synthetic dataset of the given type (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;classification&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;regression&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;blobs&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;moons&quot;</span></code>). See code for all supported types.</p>
+<p>Creates a synthetic dataset for traditional ML tasks. Supported types:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;classification&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;regression&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;blobs&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;circles&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;moons&quot;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;friedman1&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;friedman2&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;friedman3&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;sparse_uncorrelated&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;multilabel&quot;</span></code></p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_synthetic_dataset</span>
+
+<span class="c1"># Binary classification</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">create_synthetic_dataset</span><span class="p">(</span><span class="s2">&quot;classification&quot;</span><span class="p">,</span> <span class="p">{</span>
+    <span class="s2">&quot;n_samples&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+    <span class="s2">&quot;n_features&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="s2">&quot;n_classes&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;n_informative&quot;</span><span class="p">:</span> <span class="mi">10</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+</section>
+<section id="create-synthetic-text-dataset">
+<h4><code class="docutils literal notranslate"><span class="pre">create_synthetic_text_dataset</span></code><a class="headerlink" href="#create-synthetic-text-dataset" title="Link to this heading">¶</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">create_synthetic_text_dataset</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">TextDataset</span>
+</pre></div>
+</div>
+<p>Creates synthetic text data for language modeling. Generates token sequences with configurable structure.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">vocab_size</span></code>: Size of vocabulary (default: 1000)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">seq_length</span></code>: Sequence length (default: 128)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_samples</span></code>: Number of samples (default: 1000)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">entropy</span></code>: Randomness level 0-1, lower = more pattern (default: 0.8)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">random_state</span></code>: Random seed (default: 42)</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_synthetic_text_dataset</span>
+
+<span class="c1"># Generate synthetic text for transformer pretraining</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">create_synthetic_text_dataset</span><span class="p">({</span>
+    <span class="s2">&quot;vocab_size&quot;</span><span class="p">:</span> <span class="mi">32000</span><span class="p">,</span>
+    <span class="s2">&quot;seq_length&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>
+    <span class="s2">&quot;n_samples&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span>
+    <span class="s2">&quot;entropy&quot;</span><span class="p">:</span> <span class="mf">0.7</span>  <span class="c1"># Some structure, not purely random</span>
+<span class="p">})</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">TrainingConfig</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="s2">&quot;synthetic text&quot;</span><span class="p">,</span>
+    <span class="n">dataset_params</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;vocab_size&quot;</span><span class="p">:</span> <span class="mi">32000</span><span class="p">,</span>
+        <span class="s2">&quot;seq_length&quot;</span><span class="p">:</span> <span class="mi">512</span><span class="p">,</span>
+        <span class="s2">&quot;n_samples&quot;</span><span class="p">:</span> <span class="mi">10000</span>
+    <span class="p">},</span>
+    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;next-token-prediction&quot;</span><span class="p">,</span>
+    <span class="n">training_args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span> <span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">}</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="create-synthetic-image-dataset">
+<h4><code class="docutils literal notranslate"><span class="pre">create_synthetic_image_dataset</span></code><a class="headerlink" href="#create-synthetic-image-dataset" title="Link to this heading">¶</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">create_synthetic_image_dataset</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ImageDataset</span>
+</pre></div>
+</div>
+<p>Creates synthetic image data for vision tasks. Supports random noise, gradients, and geometric shapes.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">img_size</span></code>: Image size as int or tuple (H, W) (default: 32)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">channels</span></code>: Number of channels (default: 3)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_samples</span></code>: Number of samples (default: 1000)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_classes</span></code>: Number of classes (default: 10)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pattern</span></code>: Type of pattern - <code class="docutils literal notranslate"><span class="pre">'random'</span></code>, <code class="docutils literal notranslate"><span class="pre">'gradient'</span></code>, <code class="docutils literal notranslate"><span class="pre">'shapes'</span></code> (default: <code class="docutils literal notranslate"><span class="pre">'random'</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">random_state</span></code>: Random seed (default: 42)</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_synthetic_image_dataset</span>
+
+<span class="c1"># Generate synthetic images with geometric shapes</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">create_synthetic_image_dataset</span><span class="p">({</span>
+    <span class="s2">&quot;img_size&quot;</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span>
+    <span class="s2">&quot;channels&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="s2">&quot;n_samples&quot;</span><span class="p">:</span> <span class="mi">5000</span><span class="p">,</span>
+    <span class="s2">&quot;n_classes&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="s2">&quot;pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;shapes&quot;</span>  <span class="c1"># Squares, circles, triangles, lines</span>
+<span class="p">})</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">TrainingConfig</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="s2">&quot;synthetic image&quot;</span><span class="p">,</span>
+    <span class="n">dataset_params</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;img_size&quot;</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span>
+        <span class="s2">&quot;channels&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="s2">&quot;pattern&quot;</span><span class="p">:</span> <span class="s2">&quot;shapes&quot;</span>
+    <span class="p">},</span>
+    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;classification&quot;</span><span class="p">,</span>
+    <span class="n">training_args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span> <span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="create-synthetic-vision-language-dataset">
+<h4><code class="docutils literal notranslate"><span class="pre">create_synthetic_vision_language_dataset</span></code><a class="headerlink" href="#create-synthetic-vision-language-dataset" title="Link to this heading">¶</a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">create_synthetic_vision_language_dataset</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">VisionLanguageDataset</span>
+</pre></div>
+</div>
+<p>Creates synthetic vision-language paired data for multi-modal tasks.</p>
+<p><strong>Parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">img_size</span></code>: Image size (default: 32)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">channels</span></code>: Number of image channels (default: 3)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vocab_size</span></code>: Vocabulary size for text (default: 1000)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">seq_length</span></code>: Text sequence length (default: 64)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n_samples</span></code>: Number of samples (default: 500)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">correlation</span></code>: How much text correlates with image class 0-1 (default: 0.7)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">random_state</span></code>: Random seed (default: 42)</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_synthetic_vision_language_dataset</span>
+
+<span class="c1"># Generate synthetic image-caption pairs</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">create_synthetic_vision_language_dataset</span><span class="p">({</span>
+    <span class="s2">&quot;img_size&quot;</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span>
+    <span class="s2">&quot;channels&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="s2">&quot;vocab_size&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+    <span class="s2">&quot;seq_length&quot;</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span>
+    <span class="s2">&quot;n_samples&quot;</span><span class="p">:</span> <span class="mi">2000</span><span class="p">,</span>
+    <span class="s2">&quot;correlation&quot;</span><span class="p">:</span> <span class="mf">0.8</span>  <span class="c1"># High correlation between image class and text</span>
+<span class="p">})</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">TrainingConfig</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="s2">&quot;synthetic vision_language&quot;</span><span class="p">,</span>
+    <span class="n">dataset_params</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;img_size&quot;</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="s2">&quot;vocab_size&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
+        <span class="s2">&quot;seq_length&quot;</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span>
+        <span class="s2">&quot;correlation&quot;</span><span class="p">:</span> <span class="mf">0.8</span>
+    <span class="p">},</span>
+    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;next-token-prediction&quot;</span><span class="p">,</span>  <span class="c1"># Or custom multi-modal task</span>
+    <span class="n">training_args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span> <span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">}</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
 </section>
 </section>
 <hr class="docutils" />
@@ -1638,6 +1910,28 @@ weights_only: If True, restricts unpickling to safe types.</p>
 </dd></dl>
 
 <p>Computes task‑specific metrics (accuracy, precision, recall, F1, AUC, R², MSE, perplexity, etc.) and accumulates data for confusion matrices.</p>
+<p><strong>Supported Model Output Formats:</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">MetricCalculator</span></code> automatically handles various output formats from different model architectures:</p>
+<ul class="simple">
+<li><p><strong>Tensor</strong>: Standard PyTorch tensor output <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">num_classes)</span></code> or <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">seq_len,</span> <span class="pre">vocab_size)</span></code></p></li>
+<li><p><strong>Tuple</strong>: Models returning <code class="docutils literal notranslate"><span class="pre">(logits,</span> <span class="pre">loss)</span></code>, <code class="docutils literal notranslate"><span class="pre">(loss,</span> <span class="pre">logits)</span></code>, or similar tuple patterns</p></li>
+<li><p><strong>Dict</strong>: Transformer models returning <code class="docutils literal notranslate"><span class="pre">{&quot;logits&quot;:</span> <span class="pre">...,</span> <span class="pre">&quot;loss&quot;:</span> <span class="pre">...}</span></code> or similar dictionaries</p></li>
+<li><p><strong>Hugging Face Style</strong>: Objects with <code class="docutils literal notranslate"><span class="pre">.logits</span></code> and <code class="docutils literal notranslate"><span class="pre">.loss</span></code> attributes (e.g., <code class="docutils literal notranslate"><span class="pre">CausalLMOutput</span></code>, <code class="docutils literal notranslate"><span class="pre">SequenceClassifierOutput</span></code>)</p></li>
+</ul>
+<p>Example with Hugging Face style output:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">transformers.modeling_outputs</span><span class="w"> </span><span class="kn">import</span> <span class="n">CausalLMOutput</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyTransformer</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_ids</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">input_ids</span><span class="p">)</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">compute_loss</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span> <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">CausalLMOutput</span><span class="p">(</span><span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">logits</span><span class="o">=</span><span class="n">logits</span><span class="p">)</span>
+
+<span class="c1"># Trainer and MetricCalculator will automatically extract loss and logits</span>
+<span class="n">trainer</span> <span class="o">=</span> <span class="n">Trainer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<span class="n">history</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+</pre></div>
+</div>
 </section>
 </section>
 <hr class="docutils" />
@@ -2087,6 +2381,7 @@ weights_only: If True, restricts unpickling to safe types.</p>
 </li>
 </ul>
 </li>
+<li><a class="reference internal" href="#synthetic-dataset-classes">Synthetic Dataset Classes</a><ul>
 <li><a class="reference internal" href="#syntheticdataset"><code class="docutils literal notranslate"><span class="pre">SyntheticDataset</span></code></a><ul>
 <li><a class="reference internal" href="#arch_eval.data.SyntheticDataset"><code class="docutils literal notranslate"><span class="pre">SyntheticDataset</span></code></a><ul>
 <li><a class="reference internal" href="#arch_eval.data.SyntheticDataset.__init__"><code class="docutils literal notranslate"><span class="pre">SyntheticDataset.__init__()</span></code></a></li>
@@ -2094,7 +2389,36 @@ weights_only: If True, restricts unpickling to safe types.</p>
 </li>
 </ul>
 </li>
+<li><a class="reference internal" href="#textdataset"><code class="docutils literal notranslate"><span class="pre">TextDataset</span></code></a><ul>
+<li><a class="reference internal" href="#arch_eval.data.TextDataset"><code class="docutils literal notranslate"><span class="pre">TextDataset</span></code></a><ul>
+<li><a class="reference internal" href="#arch_eval.data.TextDataset.__init__"><code class="docutils literal notranslate"><span class="pre">TextDataset.__init__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#imagedataset"><code class="docutils literal notranslate"><span class="pre">ImageDataset</span></code></a><ul>
+<li><a class="reference internal" href="#arch_eval.data.ImageDataset"><code class="docutils literal notranslate"><span class="pre">ImageDataset</span></code></a><ul>
+<li><a class="reference internal" href="#arch_eval.data.ImageDataset.__init__"><code class="docutils literal notranslate"><span class="pre">ImageDataset.__init__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#visionlanguagedataset"><code class="docutils literal notranslate"><span class="pre">VisionLanguageDataset</span></code></a><ul>
+<li><a class="reference internal" href="#arch_eval.data.VisionLanguageDataset"><code class="docutils literal notranslate"><span class="pre">VisionLanguageDataset</span></code></a><ul>
+<li><a class="reference internal" href="#arch_eval.data.VisionLanguageDataset.__init__"><code class="docutils literal notranslate"><span class="pre">VisionLanguageDataset.__init__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#synthetic-dataset-generation-functions">Synthetic Dataset Generation Functions</a><ul>
 <li><a class="reference internal" href="#create-synthetic-dataset"><code class="docutils literal notranslate"><span class="pre">create_synthetic_dataset</span></code></a></li>
+<li><a class="reference internal" href="#create-synthetic-text-dataset"><code class="docutils literal notranslate"><span class="pre">create_synthetic_text_dataset</span></code></a></li>
+<li><a class="reference internal" href="#create-synthetic-image-dataset"><code class="docutils literal notranslate"><span class="pre">create_synthetic_image_dataset</span></code></a></li>
+<li><a class="reference internal" href="#create-synthetic-vision-language-dataset"><code class="docutils literal notranslate"><span class="pre">create_synthetic_vision_language_dataset</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li><a class="reference internal" href="#distributed-utilities">Distributed Utilities</a><ul>
@@ -2189,7 +2513,7 @@ weights_only: If True, restricts unpickling to safe types.</p>
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=01f34227"></script>
+</div><script src="_static/documentation_options.js?v=938c9ccc"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>

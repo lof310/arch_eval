@@ -4,12 +4,10 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.9+-ee4c2c.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-lof310%2Farch__eval-blue)](https://github.com/lof310/arch_eval)
-[![Stars](https://img.shields.io/github/stars/lof310/transformer)](#)
-[![Downloads](https://img.shields.io/github/downloads/lof310/transformer/total)](https://github.com/lof310/transformer/releases)
+[![Stars](https://img.shields.io/github/stars/lof310/arch_eval)](#)
+[![Downloads](https://img.shields.io/github/downloads/lof310/arch_eval/total)](https://github.com/lof310/arch_eval/releases)
 
 High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning models. It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
-
-> **This project is still under development**
 
 ## Features
 
@@ -139,7 +137,7 @@ results = optimizer.run()
 
 ## Documentation
 
-Documentation is under development.
+Documentation is Available at [This Page](https://lof310.github.io/arch_eval)
 
 ## Contributing
 

@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="API Reference" href="api.html"><link rel="prev" title="Quick Start" href="quickstart.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>User Guide - arch_eval 0.1.0 documentation</title>
+        <title>User Guide - arch_eval 0.2.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">arch_eval 0.1.0 documentation</div></a>
+      <a href="index.html"><div class="brand">arch_eval 0.2.0 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
   
-  <span class="sidebar-brand-text">arch_eval 0.1.0 documentation</span>
+  <span class="sidebar-brand-text">arch_eval 0.2.0 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -580,6 +580,143 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 </div>
 </section>
 </section>
+<section id="transformer-and-custom-model-compatibility">
+<h2>Transformer and Custom Model Compatibility<a class="headerlink" href="#transformer-and-custom-model-compatibility" title="Link to this heading">¶</a></h2>
+<p>arch_eval is designed to work with any PyTorch model architecture, including transformer models from Hugging Face or custom implementations. The library automatically handles various output formats:</p>
+<section id="supported-output-formats">
+<h3>Supported Output Formats<a class="headerlink" href="#supported-output-formats" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Tensor output</strong> (standard): <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">logits</span></code>  # shape: (batch, num_classes)</p></li>
+<li><p><strong>Tuple output</strong>: <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">(logits,</span> <span class="pre">loss)</span></code> or <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">(loss,</span> <span class="pre">logits)</span></code></p></li>
+<li><p><strong>Dict output</strong> (Hugging Face style): <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">{&quot;logits&quot;:</span> <span class="pre">logits,</span> <span class="pre">&quot;loss&quot;:</span> <span class="pre">loss}</span></code></p></li>
+<li><p><strong>Dict with only logits</strong>: <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">{&quot;logits&quot;:</span> <span class="pre">logits}</span></code></p></li>
+<li><p><strong>Hugging Face Output Objects</strong>: Return instances of <code class="docutils literal notranslate"><span class="pre">CausalLMOutput</span></code>, <code class="docutils literal notranslate"><span class="pre">SequenceClassifierOutput</span></code>, etc. from <code class="docutils literal notranslate"><span class="pre">transformers.modeling_outputs</span></code></p></li>
+</ol>
+<p>The trainer automatically detects and extracts:</p>
+<ul class="simple">
+<li><p>Loss values from tuples, dicts, or objects with <code class="docutils literal notranslate"><span class="pre">.loss</span></code> attribute (preferring explicit ‘loss’ keys)</p></li>
+<li><p>Logits/predictions for metric calculation from tensors, dicts, or objects with <code class="docutils literal notranslate"><span class="pre">.logits</span></code> attribute</p></li>
+</ul>
+</section>
+<section id="example-training-a-transformer-model">
+<h3>Example: Training a Transformer Model<a class="headerlink" href="#example-training-a-transformer-model" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">Trainer</span><span class="p">,</span> <span class="n">TrainingConfig</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SimpleTransformer</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vocab_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">d_model</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="n">nhead</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">vocab_size</span><span class="p">,</span> <span class="n">d_model</span><span class="p">)</span>
+        <span class="n">encoder_layer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">TransformerEncoderLayer</span><span class="p">(</span><span class="n">d_model</span><span class="o">=</span><span class="n">d_model</span><span class="p">,</span> <span class="n">nhead</span><span class="o">=</span><span class="n">nhead</span><span class="p">,</span> <span class="n">batch_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">TransformerEncoder</span><span class="p">(</span><span class="n">encoder_layer</span><span class="p">,</span> <span class="n">num_layers</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">classifier</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">d_model</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">)</span>
+        
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="c1"># x shape: (batch, seq_len)</span>
+        <span class="n">emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="p">(</span><span class="n">emb</span><span class="p">)</span>
+        <span class="n">pooled</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># Mean pooling over sequence</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;logits&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">classifier</span><span class="p">(</span><span class="n">pooled</span><span class="p">)}</span>  <span class="c1"># Dict output like HF models</span>
+
+<span class="c1"># Create text classification dataset</span>
+<span class="n">seq_len</span><span class="p">,</span> <span class="n">vocab_size</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">1000</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">,</span> <span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">))</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="p">(</span><span class="mi">500</span><span class="p">,))</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">TrainingConfig</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
+    <span class="n">training_args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">},</span>
+    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;classification&quot;</span><span class="p">,</span>
+    <span class="n">realtime</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">)</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">SimpleTransformer</span><span class="p">()</span>
+<span class="n">trainer</span> <span class="o">=</span> <span class="n">Trainer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<span class="n">history</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="example-training-with-lof310-transformer-or-hugging-face-models">
+<h3>Example: Training with lof310/transformer or Hugging Face Models<a class="headerlink" href="#example-training-with-lof310-transformer-or-hugging-face-models" title="Link to this heading">¶</a></h3>
+<p>The library is fully compatible with the <a class="reference external" href="https://github.com/lof310/transformer">lof310/transformer</a> library and Hugging Face Transformers:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">transformer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Transformer</span><span class="p">,</span> <span class="n">TransformerConfig</span>  <span class="c1"># lof310/transformer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">Trainer</span><span class="p">,</span> <span class="n">TrainingConfig</span>
+
+<span class="c1"># Create transformer config</span>
+<span class="n">model_config</span> <span class="o">=</span> <span class="n">TransformerConfig</span><span class="p">(</span>
+    <span class="n">vocab_size</span><span class="o">=</span><span class="mi">32000</span><span class="p">,</span>
+    <span class="n">d_model</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+    <span class="n">n_heads</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+    <span class="n">n_layer</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">d_ff</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+    <span class="n">max_seq_len</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Create model - returns CausalLMOutput(loss=..., logits=...)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">Transformer</span><span class="p">(</span><span class="n">model_config</span><span class="p">)</span>
+
+<span class="c1"># Prepare language modeling dataset</span>
+<span class="n">input_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">32000</span><span class="p">,</span> <span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">128</span><span class="p">))</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">input_ids</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>  <span class="c1"># For next token prediction</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">TrainingConfig</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="p">(</span><span class="n">input_ids</span><span class="p">,</span> <span class="n">labels</span><span class="p">),</span>
+    <span class="n">training_args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">},</span>
+    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;next-token-prediction&quot;</span><span class="p">,</span>
+    <span class="n">realtime</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">)</span>
+
+<span class="n">trainer</span> <span class="o">=</span> <span class="n">Trainer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<span class="n">history</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>  <span class="c1"># Works seamlessly!</span>
+</pre></div>
+</div>
+<p>Similarly for Hugging Face models:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutoModelForSequenceClassification</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">Trainer</span><span class="p">,</span> <span class="n">TrainingConfig</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">AutoModelForSequenceClassification</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;bert-base-uncased&quot;</span><span class="p">,</span> <span class="n">num_labels</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="c1"># The model returns dict with &#39;loss&#39; and &#39;logits&#39; keys</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">TrainingConfig</span><span class="p">(</span>
+    <span class="n">dataset</span><span class="o">=</span><span class="p">(</span><span class="n">input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="p">,</span> <span class="n">labels</span><span class="p">),</span>
+    <span class="n">training_args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">16</span><span class="p">},</span>
+    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;classification&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">trainer</span> <span class="o">=</span> <span class="n">Trainer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<span class="n">history</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="custom-loss-handling">
+<h3>Custom Loss Handling<a class="headerlink" href="#custom-loss-handling" title="Link to this heading">¶</a></h3>
+<p>For models that compute their own loss internally (common in transformers), the trainer will use the provided loss value when available:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Model returning (logits, loss)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">criterion</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">loss</span><span class="p">)</span>  <span class="c1"># Trainer uses this loss directly</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">logits</span><span class="p">,)</span>
+
+<span class="c1"># Model returning dict with loss</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;logits&quot;</span><span class="p">:</span> <span class="n">logits</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;loss&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">criterion</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>  <span class="c1"># Trainer uses result[&quot;loss&quot;] if present</span>
+</pre></div>
+</div>
+<p>This flexibility ensures compatibility with:</p>
+<ul class="simple">
+<li><p>Hugging Face Transformers (<code class="docutils literal notranslate"><span class="pre">AutoModelForSequenceClassification</span></code>, etc.)</p></li>
+<li><p>Custom transformer architectures</p></li>
+<li><p>Models with auxiliary losses</p></li>
+<li><p>Multi-task learning setups</p></li>
+</ul>
+</section>
+</section>
 <section id="logging-and-monitoring">
 <h2>Logging and Monitoring<a class="headerlink" href="#logging-and-monitoring" title="Link to this heading">¶</a></h2>
 <ul class="simple">
@@ -692,6 +829,13 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
 <li><a class="reference internal" href="#model-output-transformation">Model Output Transformation</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#transformer-and-custom-model-compatibility">Transformer and Custom Model Compatibility</a><ul>
+<li><a class="reference internal" href="#supported-output-formats">Supported Output Formats</a></li>
+<li><a class="reference internal" href="#example-training-a-transformer-model">Example: Training a Transformer Model</a></li>
+<li><a class="reference internal" href="#example-training-with-lof310-transformer-or-hugging-face-models">Example: Training with lof310/transformer or Hugging Face Models</a></li>
+<li><a class="reference internal" href="#custom-loss-handling">Custom Loss Handling</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#logging-and-monitoring">Logging and Monitoring</a></li>
 <li><a class="reference internal" href="#best-practices">Best Practices</a></li>
 <li><a class="reference internal" href="#next-steps">Next Steps</a></li>
@@ -706,7 +850,7 @@ pip<span class="w"> </span>install<span class="w"> </span>arch_eval
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=01f34227"></script>
+</div><script src="_static/documentation_options.js?v=938c9ccc"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>

@@ -235,7 +235,9 @@ All methods are no‑ops by default; override the ones you need.
 
 Internal class used by `Trainer` to prepare data loaders. Usually you do not need to instantiate it directly.
 
-### `SyntheticDataset`
+### Synthetic Dataset Classes
+
+#### `SyntheticDataset`
 
 ```{eval-rst}
 .. autoclass:: arch_eval.data.SyntheticDataset
@@ -244,15 +246,221 @@ Internal class used by `Trainer` to prepare data loaders. Usually you do not nee
    :show-inheritance:
 ```
 
-A simple `torch.utils.data.Dataset` wrapping synthetic data tensors.
+A simple `torch.utils.data.Dataset` wrapping synthetic data tensors for traditional ML tasks (classification, regression, etc.).
 
-### `create_synthetic_dataset`
+#### `TextDataset`
+
+```{eval-rst}
+.. autoclass:: arch_eval.data.TextDataset
+   :members:
+   :undoc-members:
+   :show-inheritance:
+```
+
+Dataset for language modeling with token sequences. Returns `(input_ids, labels)` pairs suitable for transformer training.
+
+**Example:**
+```python
+from arch_eval.data import TextDataset
+import torch
+
+input_ids = torch.randint(0, 1000, (1000, 128))  # 1000 samples, seq length 128
+labels = input_ids.clone()  # For causal LM, labels are same as input
+dataset = TextDataset(input_ids, labels)
+```
+
+#### `ImageDataset`
+
+```{eval-rst}
+.. autoclass:: arch_eval.data.ImageDataset
+   :members:
+   :undoc-members:
+   :show-inheritance:
+```
+
+Dataset for vision tasks with images. Returns `(images, labels)` pairs with optional transforms.
+
+**Example:**
+```python
+from arch_eval.data import ImageDataset
+import torch
+
+images = torch.rand(1000, 3, 32, 32)  # 1000 RGB images, 32x32
+labels = torch.randint(0, 10, (1000,))  # 10 classes
+dataset = ImageDataset(images, labels)
+```
+
+#### `VisionLanguageDataset`
+
+```{eval-rst}
+.. autoclass:: arch_eval.data.VisionLanguageDataset
+   :members:
+   :undoc-members:
+   :show-inheritance:
+```
+
+Dataset for vision-language multi-modal tasks. Returns dictionaries with `pixel_values`, `input_ids`, `attention_mask`, and `labels`.
+
+**Example:**
+```python
+from arch_eval.data import VisionLanguageDataset
+import torch
+
+images = torch.rand(500, 3, 32, 32)  # 500 images
+input_ids = torch.randint(0, 1000, (500, 64))  # Token sequences
+attention_mask = torch.ones(500, 64)
+labels = torch.randint(0, 10, (500,))
+dataset = VisionLanguageDataset(images, input_ids, attention_mask, labels)
+```
+
+### Synthetic Dataset Generation Functions
+
+#### `create_synthetic_dataset`
 
 ```python
 create_synthetic_dataset(dataset_type: str, params: Dict[str, Any]) -> SyntheticDataset
 ```
 
-Creates a synthetic dataset of the given type (e.g., `"classification"`, `"regression"`, `"blobs"`, `"moons"`). See code for all supported types.
+Creates a synthetic dataset for traditional ML tasks. Supported types:
+- `"classification"`, `"regression"`, `"blobs"`, `"circles"`, `"moons"`
+- `"friedman1"`, `"friedman2"`, `"friedman3"`, `"sparse_uncorrelated"`, `"multilabel"`
+
+**Example:**
+```python
+from arch_eval.data import create_synthetic_dataset
+
+# Binary classification
+dataset = create_synthetic_dataset("classification", {
+    "n_samples": 1000,
+    "n_features": 20,
+    "n_classes": 2,
+    "n_informative": 10
+})
+```
+
+#### `create_synthetic_text_dataset`
+
+```python
+create_synthetic_text_dataset(params: Dict[str, Any]) -> TextDataset
+```
+
+Creates synthetic text data for language modeling. Generates token sequences with configurable structure.
+
+**Parameters:**
+- `vocab_size`: Size of vocabulary (default: 1000)
+- `seq_length`: Sequence length (default: 128)
+- `n_samples`: Number of samples (default: 1000)
+- `entropy`: Randomness level 0-1, lower = more pattern (default: 0.8)
+- `random_state`: Random seed (default: 42)
+
+**Example:**
+```python
+from arch_eval.data import create_synthetic_text_dataset
+
+# Generate synthetic text for transformer pretraining
+dataset = create_synthetic_text_dataset({
+    "vocab_size": 32000,
+    "seq_length": 512,
+    "n_samples": 10000,
+    "entropy": 0.7  # Some structure, not purely random
+})
+
+config = TrainingConfig(
+    dataset="synthetic text",
+    dataset_params={
+        "vocab_size": 32000,
+        "seq_length": 512,
+        "n_samples": 10000
+    },
+    task="next-token-prediction",
+    training_args={"batch_size": 32, "num_epochs": 10}
+)
+```
+
+#### `create_synthetic_image_dataset`
+
+```python
+create_synthetic_image_dataset(params: Dict[str, Any]) -> ImageDataset
+```
+
+Creates synthetic image data for vision tasks. Supports random noise, gradients, and geometric shapes.
+
+**Parameters:**
+- `img_size`: Image size as int or tuple (H, W) (default: 32)
+- `channels`: Number of channels (default: 3)
+- `n_samples`: Number of samples (default: 1000)
+- `n_classes`: Number of classes (default: 10)
+- `pattern`: Type of pattern - `'random'`, `'gradient'`, `'shapes'` (default: `'random'`)
+- `random_state`: Random seed (default: 42)
+
+**Example:**
+```python
+from arch_eval.data import create_synthetic_image_dataset
+
+# Generate synthetic images with geometric shapes
+dataset = create_synthetic_image_dataset({
+    "img_size": 64,
+    "channels": 3,
+    "n_samples": 5000,
+    "n_classes": 10,
+    "pattern": "shapes"  # Squares, circles, triangles, lines
+})
+
+config = TrainingConfig(
+    dataset="synthetic image",
+    dataset_params={
+        "img_size": 64,
+        "channels": 3,
+        "pattern": "shapes"
+    },
+    task="classification",
+    training_args={"batch_size": 64, "num_epochs": 20}
+)
+```
+
+#### `create_synthetic_vision_language_dataset`
+
+```python
+create_synthetic_vision_language_dataset(params: Dict[str, Any]) -> VisionLanguageDataset
+```
+
+Creates synthetic vision-language paired data for multi-modal tasks.
+
+**Parameters:**
+- `img_size`: Image size (default: 32)
+- `channels`: Number of image channels (default: 3)
+- `vocab_size`: Vocabulary size for text (default: 1000)
+- `seq_length`: Text sequence length (default: 64)
+- `n_samples`: Number of samples (default: 500)
+- `correlation`: How much text correlates with image class 0-1 (default: 0.7)
+- `random_state`: Random seed (default: 42)
+
+**Example:**
+```python
+from arch_eval.data import create_synthetic_vision_language_dataset
+
+# Generate synthetic image-caption pairs
+dataset = create_synthetic_vision_language_dataset({
+    "img_size": 32,
+    "channels": 3,
+    "vocab_size": 1000,
+    "seq_length": 64,
+    "n_samples": 2000,
+    "correlation": 0.8  # High correlation between image class and text
+})
+
+config = TrainingConfig(
+    dataset="synthetic vision_language",
+    dataset_params={
+        "img_size": 32,
+        "vocab_size": 1000,
+        "seq_length": 64,
+        "correlation": 0.8
+    },
+    task="next-token-prediction",  # Or custom multi-modal task
+    training_args={"batch_size": 32, "num_epochs": 15}
+)
+```
 
 ---
 
@@ -319,6 +527,30 @@ Provides consistent logging with a `"arch_eval."` prefix.
 ```
 
 Computes task‑specific metrics (accuracy, precision, recall, F1, AUC, R², MSE, perplexity, etc.) and accumulates data for confusion matrices.
+
+**Supported Model Output Formats:**
+
+The `MetricCalculator` automatically handles various output formats from different model architectures:
+
+- **Tensor**: Standard PyTorch tensor output `(batch_size, num_classes)` or `(batch_size, seq_len, vocab_size)`
+- **Tuple**: Models returning `(logits, loss)`, `(loss, logits)`, or similar tuple patterns
+- **Dict**: Transformer models returning `{"logits": ..., "loss": ...}` or similar dictionaries
+- **Hugging Face Style**: Objects with `.logits` and `.loss` attributes (e.g., `CausalLMOutput`, `SequenceClassifierOutput`)
+
+Example with Hugging Face style output:
+```python
+from transformers.modeling_outputs import CausalLMOutput
+
+class MyTransformer(nn.Module):
+    def forward(self, input_ids, labels=None):
+        logits = self.model(input_ids)
+        loss = compute_loss(logits, labels) if labels is not None else None
+        return CausalLMOutput(loss=loss, logits=logits)
+
+# Trainer and MetricCalculator will automatically extract loss and logits
+trainer = Trainer(model, config)
+history = trainer.train()
+```
 
 ---
 

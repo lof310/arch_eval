@@ -2,11 +2,6 @@
 
 This page provides several complete examples demonstrating the main features of **arch_eval**.
 
-```{contents} Examples
-:depth: 2
-:local:
-```
-
 ## Basic Training with MNIST
 
 Train a simple CNN on MNIST using torchvision data.
