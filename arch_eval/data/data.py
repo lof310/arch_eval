@@ -64,6 +64,8 @@ class SyntheticDataset(Dataset):
 class TextDataset(Dataset):
     """Dataset for language modeling with token sequences."""
 
+    _skip_transforms = True  # Signal to DatasetHandler to skip TransformDataset wrapper
+
     def __init__(self, input_ids: torch.Tensor, labels: Optional[torch.Tensor] = None):
         self.input_ids = input_ids
         self.labels = labels if labels is not None else input_ids.clone()
@@ -99,6 +101,8 @@ class ImageDataset(Dataset):
 
 class VisionLanguageDataset(Dataset):
     """Dataset for vision-language tasks with image-text pairs."""
+
+    _skip_transforms = True  # Signal to DatasetHandler to skip TransformDataset wrapper
 
     def __init__(
         self,
@@ -321,10 +325,30 @@ def create_synthetic_image_dataset(params: Dict[str, Any]) -> ImageDataset:
                 y_grid, x_grid = torch.meshgrid(torch.arange(img_size[0]), torch.arange(img_size[1]), indexing="ij")
                 mask = ((x_grid - center_x) ** 2 + (y_grid - center_y) ** 2) < size**2
                 img[:, mask] = color.squeeze()
-            elif shape_type == 2:  # Triangle
-                for cy in range(center_y - size, center_y + size):
-                    width = int(size * (1 - abs(cy - center_y) / size))
-                    img[:, cy, max(0, center_x - width) : min(img_size[1], center_x + width)] = color.squeeze()
+            elif shape_type == 2:  # Triangle - using barycentric coordinates for proper triangle
+                # Define triangle vertices (equilateral triangle centered at center)
+                h = size * torch.sqrt(torch.tensor(3.0)) / 2  # height of equilateral triangle
+                v1 = torch.tensor([center_x, center_y - h / 1.5])  # top vertex
+                v2 = torch.tensor([center_x - size, center_y + h / 3])  # bottom left
+                v3 = torch.tensor([center_x + size, center_y + h / 3])  # bottom right
+                # Create grid of pixel coordinates
+                y_coords, x_coords = torch.meshgrid(
+                    torch.arange(img_size[0], dtype=torch.float32),
+                    torch.arange(img_size[1], dtype=torch.float32),
+                    indexing="ij",
+                )
+
+                # Compute barycentric coordinates
+                def barycentric(x, y, v1, v2, v3):
+                    denom = (v2[1] - v3[1]) * (v1[0] - v3[0]) + (v3[0] - v2[0]) * (v1[1] - v3[1])
+                    w1 = ((v2[1] - v3[1]) * (x - v3[0]) + (v3[0] - v2[0]) * (y - v3[1])) / denom
+                    w2 = ((v3[1] - v1[1]) * (x - v3[0]) + (v1[0] - v3[0]) * (y - v3[1])) / denom
+                    w3 = 1 - w1 - w2
+                    return w1, w2, w3
+
+                w1, w2, w3 = barycentric(x_coords, y_coords, v1, v2, v3)
+                mask = (w1 >= 0) & (w2 >= 0) & (w3 >= 0)
+                img[:, mask] = color.squeeze()
             else:  # Lines
                 for c in range(channels):
                     if c % 2 == 0:
@@ -420,69 +444,122 @@ class TransformDataset(Dataset):
 
 
 class DatasetHandler:
-    """Handles conversion of various dataset formats to PyTorch DataLoaders."""
+    """Handles conversion of various dataset formats to PyTorch DataLoaders.
+    Uses a factory pattern to delegate dataset creation to specialized factories.
+    """
 
-    def __init__(self, config):
+    def __init__(self, config, apply_transforms: bool = True, debug: bool = False):
         self.config = config
         self.transform = config.transform
         self.target_transform = config.target_transform
         self.collate_fn = config.collate_fn
+        self.apply_transforms = apply_transforms
+        self.debug = debug
+        # Initialize factories in priority order
+        from arch_eval.data.factories import (DictFactory, HuggingFaceFactory,
+                                              IterableFactory,
+                                              SyntheticFactory, TensorFactory,
+                                              TorchvisionFactory)
+
+        self.factories = [
+            DictFactory(),
+            HuggingFaceFactory(),
+            SyntheticFactory(),
+            TorchvisionFactory(),
+            TensorFactory(),
+            IterableFactory(),
+        ]
+        logger.info(f"DatasetHandler initialized with {len(self.factories)} factories")
+
+    def register_factory(self, factory, priority: int = 0):
+        """Register a custom factory.
+        Args:
+            factory: A DatasetFactory instance.
+            priority: If > 0, insert at beginning; otherwise append.
+        """
+        if priority > 0:
+            self.factories.insert(0, factory)
+        else:
+            self.factories.append(factory)
+        logger.info(f"Registered custom factory: {type(factory).__name__}")
 
     def prepare_loaders(self) -> Tuple[DataLoader, Optional[DataLoader], Optional[DataLoader]]:
+        """Prepare train/val/test DataLoaders using factory pattern.
+        Returns:
+            Tuple of (train_loader, val_loader, test_loader).
+        """
         dataset = self.config.dataset
-        params = self.config.dataset_params
+        params = self.config.dataset_params or {}
         batch_size = self.config.training_args.get("batch_size", 32)
-        dl_params = self.config.dataloader_params
-
-        # Streaming dataset
+        dl_params = self.config.dataloader_params or {}
         streaming = self.config.dataset_streaming
-
-        if isinstance(dataset, str):
+        # Try each factory in priority order
+        created_dataset = None
+        metadata = {}
+        for factory in self.factories:
+            if factory.can_handle(dataset, self.config):
+                try:
+                    created_dataset, metadata = factory.create(dataset, self.config)
+                    logger.info(f"Dataset created by {type(factory).__name__}")
+                    break
+                except Exception as e:
+                    logger.warning(f"{type(factory).__name__} failed: {e}. Trying next factory.")
+                    continue
+        # Handle special synthetic types not covered by factories
+        if created_dataset is None and isinstance(dataset, str):
             if dataset.startswith("synthetic "):
                 dataset_type = dataset.replace("synthetic ", "")
-                # Handle new synthetic dataset types for vision and language
                 if dataset_type == "text":
-                    dataset = create_synthetic_text_dataset(params)
+                    created_dataset = create_synthetic_text_dataset(params)
                 elif dataset_type == "image":
-                    dataset = create_synthetic_image_dataset(params)
-                elif dataset_type == "vision_language" or dataset_type == "vl":
-                    dataset = create_synthetic_vision_language_dataset(params)
+                    created_dataset = create_synthetic_image_dataset(params)
+                elif dataset_type in ("vision_language", "vl"):
+                    created_dataset = create_synthetic_vision_language_dataset(params)
                 else:
-                    dataset = create_synthetic_dataset(dataset_type, params)
-            elif TORCHVISION_AVAILABLE and dataset.lower() in TORCHVISION_DATASETS:
-                dataset = self._load_torchvision(dataset, params)
-            else:
-                raise DatasetFormatError(f"Unknown dataset string: {dataset}")
+                    created_dataset = create_synthetic_dataset(dataset_type, params)
+                logger.info(f"Created synthetic {dataset_type} dataset")
+        if created_dataset is None:
+            raise DatasetFormatError(f"No factory could handle dataset type: {type(dataset)}")
+        # Debug mode: truncate to 20 samples
+        if self.debug and not isinstance(created_dataset, IterableDataset):
+            from torch.utils.data import Subset
 
-        if HUGGINGFACE_AVAILABLE and isinstance(dataset, (HFDataset, HFIterableDataset)):
-            dataset = self._from_huggingface(dataset, streaming)
+            original_len = len(created_dataset)
+            debug_samples = min(20, original_len)
+            created_dataset = Subset(created_dataset, range(debug_samples))
+            logger.info(f"DEBUG MODE: Truncated dataset from {original_len} to {debug_samples} samples")
+        elif self.debug and isinstance(created_dataset, IterableDataset):
+            import itertools
 
+            # Wrap iterable to limit samples
+            original_iter = iter(created_dataset)
+            limited_iter = itertools.islice(original_iter, 20)
+
+            class LimitedIterableDataset(IterableDataset):
+                def __init__(self, limited_iterator):
+                    self.limited_iterator = limited_iterator
+
+                def __iter__(self):
+                    return self.limited_iterator
+
+            created_dataset = LimitedIterableDataset(limited_iter)
+            logger.info("DEBUG MODE: Limited IterableDataset to 20 samples")
         # Sharding for distributed training
         shard_cfg = self.config.dataset_shard
-        if shard_cfg and hasattr(dataset, "shard"):
+        if shard_cfg and hasattr(created_dataset, "shard"):
             num_shards = shard_cfg.get("num_shards", 1)
             shard_id = shard_cfg.get("shard_id", 0)
-            dataset = dataset.shard(num_shards=num_shards, index=shard_id)
-
-        if isinstance(dataset, Dataset):
-            if self.transform or self.target_transform:
-                dataset = TransformDataset(dataset, self.transform, self.target_transform)
-            full = dataset
-        elif isinstance(dataset, torch.Tensor):
-            targets = params.get("targets", torch.zeros(len(dataset)))
-            full = TensorDataset(dataset, targets)
-        elif isinstance(dataset, dict):
-            return self._from_dict(dataset, batch_size, dl_params)
-        elif isinstance(dataset, (list, tuple)) and len(dataset) == 2:
-            data, targets = dataset
-            if isinstance(data, np.ndarray):
-                data = torch.from_numpy(data)
-            if isinstance(targets, np.ndarray):
-                targets = torch.from_numpy(targets)
-            full = TensorDataset(data, targets)
+            created_dataset = created_dataset.shard(num_shards=num_shards, index=shard_id)
+        # Apply transforms if needed
+        if isinstance(created_dataset, Dataset):
+            should_wrap = self.apply_transforms and not getattr(created_dataset, "_skip_transforms", False)
+            if should_wrap and (self.transform or self.target_transform):
+                created_dataset = TransformDataset(created_dataset, self.transform, self.target_transform)
+            full = created_dataset
+        elif isinstance(created_dataset, IterableDataset):
+            full = created_dataset
         else:
-            raise DatasetFormatError(f"Unsupported dataset format: {type(dataset)}")
-
+            raise DatasetFormatError(f"Factory returned unsupported type: {type(created_dataset)}")
         return self._create_splits(full, batch_size, dl_params, streaming)
 
     def _load_torchvision(self, name: str, params: Dict) -> Dataset:
@@ -632,21 +709,18 @@ class DatasetHandler:
         raise DatasetFormatError(f"Cannot convert {type(item)} to TensorDataset")
 
     def _create_splits(self, dataset: Optional[Dataset], batch_size: int, dl_params: Dict, streaming: bool = False):
+        # Handle pre-split datasets from streaming/iterable mode
         if hasattr(self, "train_dataset"):
             train_loader = self._build_loader(
-                self.train_dataset, batch_size, shuffle=True, dl_params=dl_params, streaming=streaming
+                self.train_dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=True
             )
             val_loader = (
-                self._build_loader(
-                    self.val_dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming
-                )
+                self._build_loader(self.val_dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=True)
                 if self.val_dataset
                 else None
             )
             test_loader = (
-                self._build_loader(
-                    self.test_dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming
-                )
+                self._build_loader(self.test_dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=True)
                 if self.test_dataset
                 else None
             )
@@ -654,12 +728,22 @@ class DatasetHandler:
 
         if dataset is None:
             raise DatasetFormatError("No dataset provided")
+        # Handle IterableDataset - no splits, use as-is for training only
+        if isinstance(dataset, IterableDataset):
+            self.logger.warning("IterableDataset detected: using full dataset for training, no validation/test splits.")
+            return (
+                self._build_loader(dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=True),
+                None,
+                None,
+            )
+        # Streaming mode without pre-split datasets
         if streaming:
             return (
                 self._build_loader(dataset, batch_size, shuffle=False, dl_params=dl_params, streaming=streaming),
                 None,
                 None,
             )
+        # Map-style dataset: create train/val/test splits
         total = len(dataset)
         train_len = int(0.9 * total)
         val_len = int(0.05 * total)
@@ -674,15 +758,21 @@ class DatasetHandler:
     def _build_loader(self, ds, batch_size, shuffle, dl_params, streaming=False):
         if ds is None:
             return None
+        # Only pass prefetch_factor and persistent_workers if num_workers > 0
         kwargs = {
             "batch_size": batch_size,
             "shuffle": shuffle and not streaming,
             "collate_fn": self.collate_fn,
-            **dl_params,
         }
-        if kwargs.get("num_workers", 0) == 0:
-            kwargs.pop("prefetch_factor", None)
-            kwargs.pop("persistent_workers", None)
+        # Copy dl_params but handle num_workers-dependent params
+        for key, value in dl_params.items():
+            if key == "num_workers" and value > 0:
+                kwargs[key] = value
+            elif key in ("prefetch_factor", "persistent_workers"):
+                if dl_params.get("num_workers", 0) > 0:
+                    kwargs[key] = value
+            else:
+                kwargs[key] = value
         if streaming:
             kwargs.pop("shuffle", None)
         return DataLoader(ds, **kwargs)

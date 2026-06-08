@@ -1,6 +1,7 @@
 """Hyperparameter optimization utilities."""
 
 import itertools
+import logging
 import random
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional
@@ -9,6 +10,8 @@ import pandas as pd
 
 from arch_eval.core.config import TrainingConfig
 from arch_eval.core.trainer import Trainer
+
+logger = logging.getLogger(__name__)
 
 
 class HyperparameterOptimizer:
@@ -35,20 +38,33 @@ class HyperparameterOptimizer:
         self.mode = mode
         self.results = []
 
+    def _safe_deepcopy(self, obj):
+        """Safely copy config, falling back to serialization-based copy if deepcopy fails."""
+        try:
+            return deepcopy(obj)
+        except Exception as e:
+            logger.warning(f"deepcopy failed ({e}), using serialization-based copy fallback")
+            try:
+                state = obj.__getstate__()
+                new_obj = obj.__class__.__new__(obj.__class__)
+                new_obj.__setstate__(state)
+                return new_obj
+            except Exception as e2:
+                raise RuntimeError(f"Failed to copy config: deepcopy and serialization both failed: {e2}")
+
     def run(self) -> pd.DataFrame:
         if self.search_type == "grid":
             combinations = list(itertools.product(*self.param_grid.values()))
             keys = list(self.param_grid.keys())
             trials = [dict(zip(keys, combo)) for combo in combinations]
-        else:  # random
+        else:
             trials = []
             for _ in range(self.n_trials):
                 trial = {k: random.choice(v) for k, v in self.param_grid.items()}
                 trials.append(trial)
 
         for i, params in enumerate(trials):
-            config = deepcopy(self.base_config)
-            # Update training_args or top-level attributes
+            config = self._safe_deepcopy(self.base_config)
             for k, v in params.items():
                 if k in config.training_args:
                     config.training_args[k] = v

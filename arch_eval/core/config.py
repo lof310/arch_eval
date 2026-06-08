@@ -11,6 +11,16 @@ import torch
 from arch_eval.core.exceptions import ConfigurationError
 
 
+def _try_import_cloudpickle():
+    """Try to import cloudpickle, return None if not available."""
+    try:
+        import cloudpickle
+
+        return cloudpickle
+    except ImportError:
+        return None
+
+
 class TaskType(str, Enum):
     REGRESSION = "regression"
     CLASSIFICATION = "classification"
@@ -36,6 +46,14 @@ def _serialize_callable(obj: Any) -> Any:
         return None
     if not callable(obj):
         return obj
+    # Try cloudpickle first for robust serialization of any callable
+    cloudpickle = _try_import_cloudpickle()
+    if cloudpickle is not None:
+        try:
+            return ("__cloudpickle__", cloudpickle.dumps(obj))
+        except Exception:
+            pass  # Fall through to original logic
+    # Original fallback logic
     if hasattr(obj, "__name__") and hasattr(obj, "__module__") and obj.__module__ != "__main__":
         return ("__function__", obj.__module__, obj.__name__)
     warnings.warn(f"Callable {obj} may not be picklable.")
@@ -46,6 +64,17 @@ def _deserialize_callable(rep: Any) -> Any:
     """Restore a callable from its serialized representation."""
     if rep is None or not isinstance(rep, tuple):
         return rep
+    # Handle cloudpickle serialization
+    if len(rep) == 2 and rep[0] == "__cloudpickle__":
+        cloudpickle = _try_import_cloudpickle()
+        if cloudpickle is not None:
+            try:
+                return cloudpickle.loads(rep[1])
+            except Exception as e:
+                raise ValueError(f"Could not restore cloudpickled callable: {e}")
+        else:
+            raise ValueError("cloudpickle required to deserialize this callable but not installed")
+    # Handle original function reference logic
     if len(rep) == 3 and rep[0] == "__function__":
         module_name, func_name = rep[1], rep[2]
         try:
@@ -78,6 +107,7 @@ class BaseConfig:
     collate_fn: Optional[Callable] = None
     dataset_streaming: bool = False
     dataset_shard: Optional[Dict[str, Any]] = None  # ej. {"num_shards": 4, "shard_id": 0}
+    apply_transforms: bool = True  # Whether to apply transforms to datasets (False for text/VL datasets)
 
     # Computation
     dtype: torch.dtype = torch.float32
@@ -89,7 +119,7 @@ class BaseConfig:
     eval_interval: int = 100
 
     # Visualization
-    realtime: bool = True
+    realtime: Union[str, bool] = "auto"  # "auto", "gui", "terminal", "none" (bool kept for backward compatibility)
     save_video: List[str] = field(default_factory=list)
     save_plot: List[str] = field(default_factory=list)
     viz_metrics: Optional[List[str]] = None
@@ -119,20 +149,19 @@ class BaseConfig:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         if self.device.startswith("cuda"):
             self.dataloader_params["pin_memory"] = True
-        if self.seed is not None:
-            torch.manual_seed(self.seed)
-            torch.cuda.manual_seed_all(self.seed)
-            import random
-
-            import numpy as np
-
-            np.random.seed(self.seed)
-            random.seed(self.seed)
+        # Seed setup removed - moved to Trainer.__init__
         if self.deterministic:
             torch.use_deterministic_algorithms(True)
             os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
         if self.viz_metrics is None:
             self.viz_metrics = self.save_video.copy()
+        # Backward compatibility for realtime: True -> "auto", False -> "none"
+        if isinstance(self.realtime, bool):
+            self.realtime = "auto" if self.realtime else "none"
+        if self.realtime not in ("auto", "gui", "terminal", "none"):
+            raise ConfigurationError(
+                f"Invalid realtime value: {self.realtime}. Must be 'auto', 'gui', 'terminal', or 'none'."
+            )
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -212,6 +241,10 @@ class TrainingConfig(BaseConfig):
 
     # Custom loss function
     loss_function: Optional[Callable] = None
+    # Loss extraction function (optional, for custom model output formats)
+    loss_fn_extractor: Optional[Callable] = None
+    # Loss computation mode: "auto" (heuristic), "model" (use model's loss), "criterion" (always apply criterion)
+    loss_mode: str = "auto"
 
     # Distributed training
     distributed_backend: DistributedBackend = DistributedBackend.NONE
@@ -237,6 +270,16 @@ class TrainingConfig(BaseConfig):
     # Confusion matrix
     log_confusion_matrix: bool = False
     confusion_matrix_labels: Optional[List[str]] = None
+
+    # Debug mode for quick pipeline verification
+    debug: bool = False
+
+    # torch.compile support
+    compile_model: bool = False
+    compile_kwargs: Dict[str, Any] = field(default_factory=lambda: {"dynamic": True})
+
+    # Progress bar backend
+    progress_bar: str = "auto"  # "auto", "rich", "tqdm", "plain"
 
     def __post_init__(self):
         super().__post_init__()
@@ -283,6 +326,15 @@ class TrainingConfig(BaseConfig):
         if "callbacks" in state:
             serialized_callbacks = []
             for cb in state["callbacks"]:
+                # Try cloudpickle first for robust callback serialization
+                cloudpickle = _try_import_cloudpickle()
+                if cloudpickle is not None:
+                    try:
+                        serialized_callbacks.append(("__cloudpickle__", cloudpickle.dumps(cb)))
+                        continue
+                    except Exception:
+                        pass  # Fall through to original logic
+                # Original fallback logic
                 if hasattr(cb, "__getstate__"):
                     serialized_callbacks.append((cb.__class__, cb.__getstate__()))
                 else:
@@ -297,7 +349,21 @@ class TrainingConfig(BaseConfig):
                 state[f] = _deserialize_callable(state[f])
         if "callbacks" in state:
             restored_callbacks = []
-            for cls, cb_state in state["callbacks"]:
+            for item in state["callbacks"]:
+                # Handle cloudpickle serialization
+                if isinstance(item, tuple) and len(item) == 2 and item[0] == "__cloudpickle__":
+                    cloudpickle = _try_import_cloudpickle()
+                    if cloudpickle is not None:
+                        try:
+                            cb = cloudpickle.loads(item[1])
+                            restored_callbacks.append(cb)
+                            continue
+                        except Exception as e:
+                            raise ValueError(f"Could not restore cloudpickled callback: {e}")
+                    else:
+                        raise ValueError("cloudpickle required to deserialize this callback but not installed")
+                # Original fallback logic
+                cls, cb_state = item
                 if cb_state is not None:
                     cb = cls.__new__(cls)
                     cb.__setstate__(cb_state)

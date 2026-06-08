@@ -1,12 +1,15 @@
 """Main Trainer class for single model training."""
 
+import gc
 import logging
 import os
+import random
 from collections import defaultdict
 from contextlib import AbstractContextManager
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
+import psutil
 import torch
 import torch.nn as nn
 import wandb
@@ -22,15 +25,15 @@ from arch_eval.distributed import (cleanup_distributed, get_wrapped_model,
 from arch_eval.logging.logger_config import LoggerAdapter
 from arch_eval.metrics.calculator import MetricCalculator
 from arch_eval.plugins.manager import PluginManager
-from arch_eval.profiler import profiler_context
-from arch_eval.utils.device import auto_device, memory_summary
-from arch_eval.viz.viz import PlotSaver, RealtimeWindow, VideoRecorder
+from arch_eval.utils.device import memory_summary
+from arch_eval.viz.viz import (PlotSaver, RealtimeWindow, TerminalProgress,
+                               VideoRecorder)
 
 logger = logging.getLogger(__name__)
 
 
 class NullContext(AbstractContextManager):
-    """Context manager that does nothing"""
+    """Context manager that does nothing."""
 
     def __init__(self, *args, **kwargs):
         pass
@@ -50,7 +53,16 @@ class Trainer:
         self.config = config
         self.logger = LoggerAdapter("trainer")
 
-        # Distributed setup
+        if config.seed is not None:
+            torch.manual_seed(config.seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(config.seed)
+            np.random.seed(config.seed)
+            random.seed(config.seed)
+        if config.deterministic:
+            torch.use_deterministic_algorithms(True)
+            os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
         if config.distributed_backend != DistributedBackend.NONE:
             init_distributed(
                 backend="nccl",
@@ -65,14 +77,24 @@ class Trainer:
 
         self.device = torch.device(config.device)
         self.model = self.model.to(self.device)
-        # Apply dtype conversion properly
         if config.dtype != torch.float32:
             self.model = self.model.to(config.dtype)
 
-        self.dataset_handler = DatasetHandler(config)
+        if config.compile_model:
+            try:
+                self.model = torch.compile(self.model, **config.compile_kwargs)
+                logger.info("Model compiled with torch.compile")
+            except Exception as e:
+                logger.warning(f"torch.compile failed: {e}. Continuing without compilation.")
+
+        if config.debug:
+            logger.info(f"DEBUG MODE: Overriding num_epochs=1, batch_size=2")
+            config.training_args["num_epochs"] = 1
+            config.training_args["batch_size"] = 2
+
+        self.dataset_handler = DatasetHandler(config, apply_transforms=config.apply_transforms, debug=config.debug)
         self.train_loader, self.val_loader, self.test_loader = self.dataset_handler.prepare_loaders()
 
-        # Validate model with a real batch (if train_loader exists)
         self._validate_model_with_data()
 
         self.metric_calculator = MetricCalculator(
@@ -83,25 +105,49 @@ class Trainer:
         self._setup_schedulers()
         self._setup_loss_function()
 
-        # Mixed precision
         self.use_amp = config.mixed_precision and config.device == "cuda"
         self.amp_dtype = self._get_amp_dtype()
         self.scaler = torch.cuda.amp.GradScaler() if self.use_amp and config.grad_scaler else None
 
-        # Gradient checkpointing (experimental)
         if config.gradient_checkpointing:
             self._apply_gradient_checkpointing()
 
         # Visualization
         self.window = None
-        if config.realtime:
+        self.terminal_progress = None
+        # Handle realtime setting: "auto", "gui", "terminal", "none"
+        realtime_mode = config.realtime
+        use_gui = False
+        use_terminal = False
+        if realtime_mode == "gui":
+            use_gui = True
+        elif realtime_mode == "terminal":
+            use_terminal = True
+        elif realtime_mode == "auto":
+            # Auto mode: try GUI first, fallback to terminal
+            from arch_eval.viz.viz import _gui_available
+
+            if _gui_available():
+                use_gui = True
+            else:
+                use_terminal = True
+        # "none" means no visualization
+        if use_gui:
             try:
                 self.window = RealtimeWindow(config, metric_names=config.viz_metrics)
                 if getattr(self.window, "disabled", False):
                     self.window = None
+                    use_terminal = True
             except Exception as e:
-                self.logger.warning(f"Failed to initialize realtime window: {e}")
+                self.logger.warning(f"Failed to initialize realtime window (GUI unavailable): {e}")
                 self.window = None
+                use_terminal = True
+        if use_terminal:
+            try:
+                self.terminal_progress = TerminalProgress(config, metric_names=config.viz_metrics)
+                self.logger.info("Using terminal-based progress display")
+            except Exception as e2:
+                self.logger.warning(f"Failed to initialize terminal progress: {e2}")
         self.video_recorder = VideoRecorder(config, config.save_video) if config.save_video else None
         self.plot_saver = None
 
@@ -127,13 +173,21 @@ class Trainer:
         self.accumulation_steps = config.gradient_accumulation_steps
         self.current_accum_step = 0
 
-        # Initialize checkpoint best metric
-        self.checkpoint_best_metric = None
+        # Capture environment info for reproducibility
+        self.environment_info = self._capture_environment()
+        self.logger.info(f"Environment: {self.environment_info}")
+        if config.log_to_wandb:
+            wandb.config.update(self.environment_info)
 
         self.logger.info(f"Trainer initialized on {self.device}\n{memory_summary()}")
 
     def _get_amp_dtype(self):
         if not self.use_amp:
+            return None
+        # Mixed precision is only supported on CUDA
+        if self.device.type != "cuda":
+            logger.warning("mixed_precision=True is ignored on CPU. Disabling AMP.")
+            self.use_amp = False
             return None
         if self.config.mixed_precision_dtype == MixedPrecisionDtype.FLOAT16:
             return torch.float16
@@ -143,6 +197,34 @@ class Trainer:
             return torch.float8_e4m3fn if hasattr(torch, "float8_e4m3fn") else torch.float16
         else:
             return torch.float16
+
+    def _capture_environment(self) -> Dict[str, Any]:
+        """Capture environment information for reproducibility."""
+        import platform
+        import sys
+
+        import arch_eval
+
+        info: Dict[str, Any] = {
+            "python_version": sys.version,
+            "torch_version": torch.__version__,
+            "arch_eval_version": arch_eval.__version__,
+            "platform": platform.platform(),
+            "cpu": platform.processor(),
+            "cpu_cores": psutil.cpu_count(logical=False),
+            "cpu_threads": psutil.cpu_count(logical=True),
+            "ram_total_gb": psutil.virtual_memory().total / 2**30,
+        }
+        if torch.cuda.is_available():
+            info.update(
+                {
+                    "cuda_available": True,
+                    "cuda_version": torch.version.cuda,
+                    "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.device_count() > 0 else None,
+                    "gpu_count": torch.cuda.device_count(),
+                }
+            )
+        return info
 
     def _apply_gradient_checkpointing(self):
         """Experimental: attempts to enable gradient checkpointing on specified modules."""
@@ -163,20 +245,12 @@ class Trainer:
             self.logger.warning("No training loader – skipping model validation.")
             return
         try:
-            # Get one batch
             data, targets = next(iter(self.train_loader))
             data = data.to(self.device)
             targets = targets.to(self.device)
             self.model.eval()
             with torch.no_grad():
                 output = self.model(data)
-                # Handle models that return tuples or dicts (common in transformers)
-                if isinstance(output, (tuple, list)):
-                    # For models returning (logits, loss) or similar
-                    pass
-                elif isinstance(output, dict):
-                    # For models returning dict with 'logits', 'loss', etc.
-                    pass
             self.model.train()
             self.logger.info("Model validation passed.")
         except Exception as e:
@@ -257,42 +331,76 @@ class Trainer:
             self.criterion = getattr(task, "loss_function", nn.MSELoss())
 
     def _compute_loss(self, output, targets):
-        """Compute loss from model output, handling various output formats."""
-        # Handle models that return tuples (e.g., (logits, loss), (loss, logits))
+        """Compute loss from model output, handling various output formats.
+        Args:
+            output: Model output (tensor, tuple, dict, or dataclass).
+            targets: Target tensor for computing loss with criterion.
+        Returns:
+            Computed loss as a scalar tensor.
+        """
+        loss_mode = getattr(self.config, "loss_mode", "auto")
+        if loss_mode == "model":
+            # Handle Hugging Face style output objects
+            if hasattr(output, "loss") and output.loss is not None:
+                return output.loss
+            # Handle tuple outputs
+            if isinstance(output, tuple) and len(output) >= 2:
+                second = output[1]
+                if isinstance(second, torch.Tensor) and second.numel() == 1:
+                    return second
+                first = output[0]
+                if isinstance(first, torch.Tensor) and first.numel() == 1:
+                    return first
+            # Handle dict outputs
+            if isinstance(output, dict) and "loss" in output and output["loss"] is not None:
+                return output["loss"]
+            # Fallback to criterion
+            if isinstance(output, dict):
+                output = output.get("logits", next(iter(output.values())))
+            elif isinstance(output, (tuple, list)):
+                output = output[0]
+            return self.criterion(output, targets)
+        if loss_mode == "criterion":
+            if isinstance(output, dict):
+                output = output.get("logits", next(iter(output.values())))
+            elif isinstance(output, (tuple, list)):
+                output = output[0]
+            elif hasattr(output, "logits"):
+                output = output.logits
+            return self.criterion(output, targets)
+        # Auto mode - use original heuristic behavior
+        if self.config.loss_fn_extractor:
+            try:
+                return self.config.loss_fn_extractor(output, targets)
+            except Exception as e:
+                self.logger.warning(f"loss_fn_extractor failed: {e}, falling back to heuristic")
+        # Handle tuple outputs
         if isinstance(output, tuple):
-            # If second element is a scalar tensor, assume it's the loss
             if len(output) >= 2:
                 second = output[1]
                 if isinstance(second, torch.Tensor) and second.numel() == 1:
                     return second
-                # Check if first element is the loss (some models return (loss, ...))
                 first = output[0]
                 if isinstance(first, torch.Tensor) and first.numel() == 1:
                     return first
-            # Otherwise use first element as logits/predictions
             output = output[0]
 
-        # Handle models that return dicts (common in transformers)
+        # Handle dict outputs
         if isinstance(output, dict):
-            # Look for 'loss' key first, but only if it's not None
             if "loss" in output and output["loss"] is not None:
                 return output["loss"]
-            # Fall back to 'logits' or first value for criterion
             output = output.get("logits", next(iter(output.values())))
 
         # Handle list outputs
         if isinstance(output, list) and len(output) > 0:
             output = output[0]
 
-        # Handle Hugging Face style output objects (e.g., CausalLMOutput, SequenceClassifierOutput)
-        # These are dataclass-like objects with .loss and .logits attributes
+        # Handle Hugging Face style output objects
         if hasattr(output, "loss") and output.loss is not None:
             return output.loss
 
-        # Now apply criterion to get loss if not already computed
         return self.criterion(output, targets)
 
-    @auto_device
     def train(self) -> Dict[str, List[float]]:
         self.logger.info("Starting training")
         try:
@@ -300,37 +408,18 @@ class Trainer:
             self.plugin_manager.execute_hook("before_training", self, self.config)
 
             num_epochs = self.config.training_args.get("num_epochs", 10)
+            # Setup profiler only if enabled in config
+            use_profiler = self.config.profiler and self.config.profiler.get("enabled", False)
+            if use_profiler:
+                from arch_eval.profiler import profiler_context
+            else:
+                profiler_context = None
 
-            with profiler_context(self.config) as prof:
-                for epoch in range(num_epochs):
-                    if self.stop_training:
-                        break
-                    self.current_epoch = epoch
-                    self.plugin_manager.execute_hook("on_epoch_start", self, epoch)
-
-                    train_metrics = self._train_epoch()
-                    val_metrics = self._validate_epoch() if self.val_loader else {}
-                    epoch_metrics = {**train_metrics, **val_metrics}
-                    self.history.append(epoch_metrics)
-
-                    self._step_schedulers(epoch_metrics, interval="epoch")
-
-                    if epoch % self.config.log_interval == 0:
-                        self._log_metrics(epoch_metrics, epoch)
-
-                    plugin_results = self.plugin_manager.execute_hook("on_epoch_end", self, epoch, epoch_metrics)
-                    for r in plugin_results:
-                        if isinstance(r, dict):
-                            epoch_metrics.update(r)
-
-                    if self.config.early_stopping_patience and self._check_early_stopping(epoch_metrics):
-                        self.logger.info(f"Early stopping triggered at epoch {epoch}")
-                        break
-
-                    self._save_checkpoint(epoch, epoch_metrics)
-
-                    if prof:
-                        prof.step()
+            if use_profiler and profiler_context:
+                with profiler_context(self.config) as prof:
+                    self._run_training_loop(num_epochs, prof)
+            else:
+                self._run_training_loop(num_epochs, prof=None)
 
             if self.config.eval_on_test and self.test_loader:
                 test_metrics = self._evaluate(self.test_loader, "test")
@@ -353,6 +442,8 @@ class Trainer:
                 self.video_recorder.save_video("training_video")
             if self.window:
                 self.window.close()
+            if self.terminal_progress:
+                self.terminal_progress.close()
             if self.config.log_to_wandb:
                 wandb.finish()
             if self.config.distributed_backend != DistributedBackend.NONE:
@@ -361,14 +452,49 @@ class Trainer:
         self.logger.info("Training completed")
         return self._get_history_dict()
 
-    @auto_device
+    def _run_training_loop(self, num_epochs: int, prof=None):
+        """Execute the main training loop over epochs."""
+        for epoch in range(num_epochs):
+            if self.stop_training:
+                break
+            self.current_epoch = epoch
+            self.plugin_manager.execute_hook("on_epoch_start", self, epoch)
+
+            train_metrics = self._train_epoch()
+            val_metrics = self._validate_epoch() if self.val_loader else {}
+            epoch_metrics = {**train_metrics, **val_metrics}
+            self.history.append(epoch_metrics)
+
+            self._step_schedulers(epoch_metrics, interval="epoch")
+
+            if epoch % self.config.log_interval == 0:
+                self._log_metrics(epoch_metrics, epoch)
+
+            plugin_results = self.plugin_manager.execute_hook("on_epoch_end", self, epoch, epoch_metrics)
+            for r in plugin_results:
+                if isinstance(r, dict):
+                    epoch_metrics.update(r)
+
+            if self.config.early_stopping_patience and self._check_early_stopping(epoch_metrics):
+                self.logger.info(f"Early stopping triggered at epoch {epoch}")
+                break
+
+            self._save_checkpoint(epoch, epoch_metrics)
+
+            if prof:
+                prof.step()
+
     def _train_epoch(self) -> Dict[str, float]:
+        """Train for one epoch.
+        Returns:
+            Dictionary of training metrics for the epoch.
+        """
         self.model.train()
         total_loss = 0.0
         metric_accum = defaultdict(float)
         count = 0
         autocast = torch.cuda.amp.autocast if self.use_amp else NullContext
-        self.current_accum_step = 0
+        self.current_accum_step = 0  # Reset accumulation counter at start of epoch
 
         for batch_idx, (data, targets) in enumerate(self.train_loader):
             data, targets = data.to(self.device), targets.to(self.device)
@@ -397,6 +523,16 @@ class Trainer:
                         for opt in self.optimizers:
                             self.scaler.unscale_(opt)
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.gradient_clip)
+
+                # Collect gradients for on_before_optimizer_step hook
+                gradients = []
+                for opt in self.optimizers:
+                    for group in opt.param_groups:
+                        for param in group["params"]:
+                            if param.grad is not None:
+                                gradients.append(param.grad.detach())
+
+                self.plugin_manager.execute_hook("on_before_optimizer_step", self, gradients)
 
                 if self.scaler:
                     for opt in self.optimizers:
@@ -428,16 +564,51 @@ class Trainer:
                 avg_metrics = {k: v / count for k, v in metric_accum.items()}
                 if self.window:
                     self.window.update(avg_metrics)
+                if self.terminal_progress:
+                    self.terminal_progress.update(avg_metrics)
                 if self.video_recorder:
                     self.video_recorder.record_step(self.global_step, avg_metrics)
 
             self.plugin_manager.execute_hook("on_batch_end", self, batch_idx, loss.item() * self.accumulation_steps)
 
-            # Memory cleanup
             if self.global_step % self.config.gc_collect_interval == 0:
-                torch.cuda.empty_cache() if torch.cuda.is_available() else None
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                gc.collect()
 
             del output, loss, data, targets
+
+        # Final memory cleanup at end of epoch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
+        # Handle leftover gradients from incomplete accumulation group
+        if self.current_accum_step % self.accumulation_steps != 0:
+            if self.config.gradient_clip:
+                if self.scaler:
+                    for opt in self.optimizers:
+                        self.scaler.unscale_(opt)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.gradient_clip)
+            gradients = []
+            for opt in self.optimizers:
+                for group in opt.param_groups:
+                    for param in group["params"]:
+                        if param.grad is not None:
+                            gradients.append(param.grad.detach())
+
+            self.plugin_manager.execute_hook("on_before_optimizer_step", self, gradients)
+            if self.scaler:
+                for opt in self.optimizers:
+                    self.scaler.step(opt)
+                self.scaler.update()
+            else:
+                for opt in self.optimizers:
+                    opt.step()
+            for opt in self.optimizers:
+                opt.zero_grad()
+
+            self.plugin_manager.execute_hook("on_optimizer_step", self)
 
         return {k: v / count for k, v in metric_accum.items()}
 
@@ -445,6 +616,13 @@ class Trainer:
         return self._evaluate(self.val_loader, "val")
 
     def _evaluate(self, loader: DataLoader, split: str) -> Dict[str, float]:
+        """Evaluate model on a data loader.
+        Args:
+            loader: DataLoader for evaluation.
+            split: Name of the split (e.g., 'val', 'test').
+        Returns:
+            Dictionary of evaluation metrics.
+        """
         if not loader:
             return {}
         self.model.eval()
@@ -452,7 +630,6 @@ class Trainer:
         metric_accum = defaultdict(float)
         count = 0
 
-        # Reset confusion matrix accumulator if needed
         if self.config.log_confusion_matrix and split == "val":
             self.metric_calculator.reset_confusion_matrix()
 
@@ -475,14 +652,19 @@ class Trainer:
                     metric_accum[k] += v
                 count += 1
 
-                # Accumulate for confusion matrix
                 if self.config.log_confusion_matrix and split == "val":
                     self.metric_calculator.accumulate_confusion_matrix(output, targets)
 
         metrics = {k: v / count for k, v in metric_accum.items()}
         self.plugin_manager.execute_hook("on_validation_end", self, metrics)
 
-        # Log confusion matrix to wandb
+        self.model.train()
+
+        # Memory cleanup at end of validation
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
         if self.config.log_confusion_matrix and split == "val" and self.config.log_to_wandb:
             cm = self.metric_calculator.compute_confusion_matrix()
             if cm is not None:
@@ -501,6 +683,8 @@ class Trainer:
 
         if self.window:
             self.window.update(metrics)
+        if self.terminal_progress:
+            self.terminal_progress.update(metrics)
         return metrics
 
     def _step_schedulers(self, metrics: Dict[str, float], interval: str):
@@ -524,7 +708,6 @@ class Trainer:
         if self.config.log_all_metrics:
             log_msg = f"Epoch {step}: " + " - ".join(log_items)
         else:
-            # Show only loss or accuracy related
             filtered = [item for item in log_items if "loss" in item or "accuracy" in item]
             log_msg = f"Epoch {step}: " + " ".join(filtered) if filtered else f"Epoch {step}: (no loss/acc metrics)"
         self.logger.info(log_msg)
@@ -582,6 +765,7 @@ class Trainer:
             "metrics": metrics,
             "best_metric": self.best_metric,
             "checkpoint_best_metric": self.checkpoint_best_metric,
+            "environment": self.environment_info,
         }
         if self.scaler:
             ckpt["scaler_state_dict"] = self.scaler.state_dict()

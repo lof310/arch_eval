@@ -3,6 +3,7 @@
 import importlib
 import inspect
 import logging
+import os
 import pkgutil
 import sys
 import traceback
@@ -57,6 +58,9 @@ class PluginManager:
             "on_validation_end", "Called after validation loop", ["trainer", "metrics"], None
         ),
         "on_backward": HookSpec("on_backward", "Called after loss.backward()", ["trainer", "loss"], None),
+        "on_before_optimizer_step": HookSpec(
+            "on_before_optimizer_step", "Called before optimizer.step()", ["trainer", "gradients"], None
+        ),
         "on_optimizer_step": HookSpec("on_optimizer_step", "Called after optimizer step", ["trainer"], None),
     }
 
@@ -66,17 +70,43 @@ class PluginManager:
         self.local_hooks = local_hooks or {name: [] for name in self.HOOKS}
 
     def discover_plugins(self, plugin_paths: Optional[List[str]] = None):
+        """Discover plugins from specified paths or built-in arch_eval.plugins only.
+        Args:
+            plugin_paths: List of directories to scan for plugins. If empty or None,
+                only scans the built-in arch_eval.plugins subpackage.
+        """
         if plugin_paths:
             for p in plugin_paths:
                 if p not in sys.path:
                     sys.path.insert(0, p)
-        for finder, name, ispkg in pkgutil.iter_modules():
-            if name.startswith("arch_eval_plugin_") or name.endswith("_plugin"):
+        # Only scan explicitly provided paths or built-in arch_eval.plugins
+        modules_to_scan = []
+        if plugin_paths:
+            # Scan only user-provided paths
+            for path in plugin_paths:
                 try:
-                    module = importlib.import_module(name)
-                    self._load_plugin_from_module(module)
+                    for finder, name, ispkg in pkgutil.iter_modules([path]):
+                        if name.startswith("arch_eval_plugin_") or name.endswith("_plugin"):
+                            modules_to_scan.append((finder, name, ispkg))
                 except Exception as e:
-                    logger.warning(f"Failed to load plugin {name}: {e}")
+                    logger.warning(f"Failed to scan path {path}: {e}")
+        else:
+            # Only scan built-in arch_eval.plugins
+            try:
+                import arch_eval.plugins as plugins_pkg
+
+                plugins_path = os.path.dirname(plugins_pkg.__file__)
+                for finder, name, ispkg in pkgutil.iter_modules([plugins_path]):
+                    if name.startswith("arch_eval_plugin_") or name.endswith("_plugin"):
+                        modules_to_scan.append((finder, name, ispkg))
+            except Exception as e:
+                logger.warning(f"Failed to scan built-in plugins: {e}")
+        for finder, name, ispkg in modules_to_scan:
+            try:
+                module = importlib.import_module(name)
+                self._load_plugin_from_module(module)
+            except Exception as e:
+                logger.warning(f"Failed to load plugin {name}: {e}")
         logger.info(f"Discovered {len(self.global_plugins)} global plugins")
 
     def _load_plugin_from_module(self, module):

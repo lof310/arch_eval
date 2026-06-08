@@ -45,7 +45,6 @@ def get_wrapped_model(model, config):
             from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
             from torch.distributed.fsdp import ShardingStrategy
 
-            # básico :)
             return FSDP(model, sharding_strategy=ShardingStrategy.FULL_SHARD)
         except ImportError:
             raise DistributedError("FSDP requires PyTorch >= 1.12")

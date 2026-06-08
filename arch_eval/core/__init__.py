@@ -1,7 +1,9 @@
 from arch_eval.core.benchmark import Benchmark
 from arch_eval.core.callbacks import (Callback, EarlyStopping,
+                                      GradientModifierCallback,
                                       LRSchedulerLogger, ModelCheckpoint,
-                                      TensorBoardLogger)
+                                      SlopeEarlyStopping, TensorBoardLogger,
+                                      TextGeneratorCallback)
 from arch_eval.core.config import BenchmarkConfig, TrainingConfig
 from arch_eval.core.exceptions import (ArchEvalError, ConfigurationError,
                                        DatasetFormatError, ModelError,
@@ -16,9 +18,12 @@ __all__ = [
     "BenchmarkConfig",
     "Callback",
     "EarlyStopping",
+    "SlopeEarlyStopping",
+    "GradientModifierCallback",
     "ModelCheckpoint",
     "LRSchedulerLogger",
     "TensorBoardLogger",
+    "TextGeneratorCallback",
     "ArchEvalError",
     "DatasetFormatError",
     "ConfigurationError",

@@ -19,7 +19,6 @@ def profiler_context(config):
         if "cuda" in config.profiler.get("activities", []) and torch.cuda.is_available():
             activities.append(torch.profiler.ProfilerActivity.CUDA)
 
-        # Configurar schedule con valores por defecto
         schedule_config = config.profiler.get("schedule", {})
         wait = schedule_config.get("wait", 1)
         warmup = schedule_config.get("warmup", 1)

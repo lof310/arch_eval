@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arch_eval"
-version = "0.2.0"
+version = "1.0.0"
 description = "High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning Models."
 readme = "README.md"
 authors = [

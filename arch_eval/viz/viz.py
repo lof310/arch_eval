@@ -1,6 +1,5 @@
 """Visualization utilities: real-time window, video recording and plot saving."""
 
-import atexit
 import logging
 import os
 import queue
@@ -18,6 +17,128 @@ import torch
 logger = logging.getLogger(__name__)
 
 
+def _gui_available() -> bool:
+    """Check if a GUI display is available for matplotlib/TkAgg backend."""
+    try:
+        import tkinter
+
+        tkinter.Tk()
+        return True
+    except Exception:
+        return False
+
+
+class TerminalProgress:
+    """Terminal-based progress display using rich/tqdm with graceful fallbacks."""
+
+    def __init__(self, config, metric_names: Optional[List[str]] = None):
+        self.config = config
+        self.metric_names = metric_names or []
+        self.metrics_history = {}
+        self.best_metrics = {}
+        self.step_counter = 0
+        self.disabled = False
+        # Try importing rich, then tqdm, then fall back to plain print
+        self._backend = "plain"
+        try:
+            from rich.console import Console
+            from rich.live import Live
+            from rich.panel import Panel
+            from rich.table import Table
+
+            self.Console = Console
+            self.Live = Live
+            self.Table = Table
+            self.Panel = Panel
+            self._backend = "rich"
+        except ImportError:
+            try:
+                from tqdm import tqdm
+
+                self.tqdm = tqdm
+                self._backend = "tqdm"
+            except ImportError:
+                logger.info("Neither rich nor tqdm available, using plain terminal output")
+        if self._backend == "rich":
+            self.console = self.Console()
+            self.live = None
+        elif self._backend == "tqdm":
+            self.pbar = None
+
+    def start(self, total_steps: Optional[int] = None):
+        """Start the progress display."""
+        if self._backend == "rich":
+            self.live = self.Live(self._make_table({}), console=self.console, refresh_per_second=4)
+            self.live.start()
+        elif self._backend == "tqdm":
+            self.pbar = self.tqdm(total=total_steps, desc="Training")
+
+    def _make_table(self, metrics: Dict[str, float]) -> Any:
+        """Create a table/panel with current metrics."""
+        if self._backend == "rich":
+            table = self.Table(title="Training Progress", expand=True)
+            table.add_column("Metric", style="cyan")
+            table.add_column("Current", style="green")
+            table.add_column("Best", style="yellow")
+            for name in self.metric_names[:6]:
+                if name in metrics:
+                    val = metrics[name]
+                    best = self.best_metrics.get(name, val)
+                    if "loss" in name.lower():
+                        if val < best:
+                            self.best_metrics[name] = val
+                            best = val
+                    else:
+                        if val > best:
+                            self.best_metrics[name] = val
+                            best = val
+                    table.add_row(name, f"{val:.4f}", f"{best:.4f}")
+            cpu = psutil.cpu_percent()
+            mem = psutil.virtual_memory().percent
+            gpu_mem = ""
+            if torch.cuda.is_available():
+                gpu_mem = f"{torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated() * 100:.1f}%"
+            table.add_row("CPU %", f"{cpu:.1f}", "")
+            table.add_row("Memory %", f"{mem:.1f}", "")
+            if gpu_mem:
+                table.add_row("GPU Mem %", gpu_mem, "")
+            return self.Panel(table, title=f"Step {self.step_counter}")
+        else:
+            return metrics
+
+    def update(self, metrics: Dict[str, float]):
+        """Update the display with new metrics."""
+        if self.disabled:
+            return
+        self.step_counter += 1
+        if self.step_counter % self.config.viz_interval != 0:
+            return
+        # Update history
+        for name, value in metrics.items():
+            if name not in self.metrics_history:
+                self.metrics_history[name] = deque(maxlen=100)
+            self.metrics_history[name].append(value)
+        if self._backend == "rich" and self.live:
+            self.live.update(self._make_table(metrics))
+        elif self._backend == "tqdm" and self.pbar:
+            desc_parts = [f"{k}: {v:.4f}" for k, v in list(metrics.items())[:3]]
+            self.pbar.set_postfix_str(", ".join(desc_parts))
+            self.pbar.update(1)
+        else:
+            if self.step_counter % (self.config.log_interval * 10) == 0:
+                parts = [f"{k}: {v:.4f}" for k, v in metrics.items()]
+                print(f"\rStep {self.step_counter}: " + ", ".join(parts[:5]), end="", flush=True)
+
+    def close(self):
+        """Close the progress display."""
+        if self._backend == "rich" and self.live:
+            self.live.stop()
+        elif self._backend == "tqdm" and self.pbar:
+            self.pbar.close()
+        elif self._backend == "plain":
+            print()  # Newline after plain output
+
+
 class PlotSaver:
     """Saves final plots of metrics."""
 
@@ -27,7 +148,6 @@ class PlotSaver:
 
     def save_plots(self, out_dir: str = "./plots"):
         """Save plots for specified metrics."""
-        # Import matplotlib only when needed and use Agg backend
         import matplotlib
 
         matplotlib.use("Agg")
@@ -38,7 +158,6 @@ class PlotSaver:
         to_plot = self.config.save_plot or list(self.history.keys())
 
         for metric in to_plot:
-            # Search the metric with or without prefix
             data = None
             if metric in self.history:
                 data = self.history[metric]
@@ -158,7 +277,6 @@ class VideoRecorder:
         plt.tight_layout()
         fig.canvas.draw()
 
-        # Convert to numpy array
         frame = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
         frame = frame.reshape(fig.canvas.get_width_height()[::-1] + (3,))
 
@@ -240,6 +358,12 @@ class RealtimeWindow:
         self.step_counter = 0
         self.disabled = False
 
+        # Pre-check GUI availability before attempting to create figure
+        if not _gui_available():
+            logger.warning("GUI display not available. RealtimeWindow disabled.")
+            self.disabled = True
+            return
+
         try:
             import matplotlib
 
@@ -265,11 +389,9 @@ class RealtimeWindow:
         self.fig, self.axes = self.plt.subplots(self.n_rows, self.n_cols, figsize=self.figsize, squeeze=False)
         self.axes = self.axes.flatten()
 
-        # Hide all axes initially
         for ax in self.axes:
             ax.set_visible(False)
 
-        # System stats subplot (always at last position)
         self.system_ax = self.axes[-1]
         self.system_ax.set_visible(True)
         self.system_ax.set_title("System Resources")
@@ -284,7 +406,6 @@ class RealtimeWindow:
             self.gpu_line = None
         self.system_ax.legend()
 
-        # Metric lines will be added dynamically
         self.metric_lines = {}
         self.metric_axes = {}
         self.next_metric_idx = 0
@@ -322,10 +443,8 @@ class RealtimeWindow:
         if self.step_counter % self.config.viz_interval != 0:
             return
 
-        # Update system stats
         self.system_history.append(self._get_system_stats())
 
-        # Update metric histories and add new metrics if needed
         for name, value in metrics.items():
             if name not in self.metrics_history:
                 if self.next_metric_idx < self.max_metric_plots:
@@ -334,11 +453,9 @@ class RealtimeWindow:
                     continue
             self.metrics_history[name].append(value)
 
-        # Redraw plots
         self._update_plots()
 
     def _update_plots(self):
-        # Update metric lines
         for name, line in self.metric_lines.items():
             data = list(self.metrics_history.get(name, []))
             if data:
@@ -348,7 +465,6 @@ class RealtimeWindow:
                 ax.relim()
                 ax.autoscale_view()
 
-        # Update system plot
         if self.system_history:
             steps = range(len(self.system_history))
             cpu_vals = [s["cpu"] for s in self.system_history]
