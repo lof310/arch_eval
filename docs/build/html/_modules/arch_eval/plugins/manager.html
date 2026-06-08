@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>arch_eval.plugins.manager - arch_eval 0.2.0 documentation</title>
+        <title>arch_eval.plugins.manager - arch_eval 1.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -160,7 +160,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../../index.html"><div class="brand">arch_eval 0.2.0 documentation</div></a>
+      <a href="../../../index.html"><div class="brand">arch_eval 1.0.0 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -181,7 +181,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../../../index.html">
   
-  <span class="sidebar-brand-text">arch_eval 0.2.0 documentation</span>
+  <span class="sidebar-brand-text">arch_eval 1.0.0 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -193,7 +193,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../guide.html">User Guide</a></li>
 </ul>
@@ -201,7 +201,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Usage Examples</span></p>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Usage Examples</a></li>
 </ul>
@@ -246,6 +246,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pkgutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">traceback</span>
@@ -302,6 +303,9 @@
             <span class="s2">&quot;on_validation_end&quot;</span><span class="p">,</span> <span class="s2">&quot;Called after validation loop&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;trainer&quot;</span><span class="p">,</span> <span class="s2">&quot;metrics&quot;</span><span class="p">],</span> <span class="kc">None</span>
         <span class="p">),</span>
         <span class="s2">&quot;on_backward&quot;</span><span class="p">:</span> <span class="n">HookSpec</span><span class="p">(</span><span class="s2">&quot;on_backward&quot;</span><span class="p">,</span> <span class="s2">&quot;Called after loss.backward()&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;trainer&quot;</span><span class="p">,</span> <span class="s2">&quot;loss&quot;</span><span class="p">],</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="s2">&quot;on_before_optimizer_step&quot;</span><span class="p">:</span> <span class="n">HookSpec</span><span class="p">(</span>
+            <span class="s2">&quot;on_before_optimizer_step&quot;</span><span class="p">,</span> <span class="s2">&quot;Called before optimizer.step()&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;trainer&quot;</span><span class="p">,</span> <span class="s2">&quot;gradients&quot;</span><span class="p">],</span> <span class="kc">None</span>
+        <span class="p">),</span>
         <span class="s2">&quot;on_optimizer_step&quot;</span><span class="p">:</span> <span class="n">HookSpec</span><span class="p">(</span><span class="s2">&quot;on_optimizer_step&quot;</span><span class="p">,</span> <span class="s2">&quot;Called after optimizer step&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;trainer&quot;</span><span class="p">],</span> <span class="kc">None</span><span class="p">),</span>
     <span class="p">}</span>
 
@@ -316,17 +320,43 @@
 <div class="viewcode-block" id="PluginManager.discover_plugins">
 <a class="viewcode-back" href="../../../api.html#arch_eval.PluginManager.discover_plugins">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">discover_plugins</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plugin_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Discover plugins from specified paths or built-in arch_eval.plugins only.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            plugin_paths: List of directories to scan for plugins. If empty or None,</span>
+<span class="sd">                only scans the built-in arch_eval.plugins subpackage.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">plugin_paths</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">plugin_paths</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
                     <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">finder</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ispkg</span> <span class="ow">in</span> <span class="n">pkgutil</span><span class="o">.</span><span class="n">iter_modules</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;arch_eval_plugin_&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;_plugin&quot;</span><span class="p">):</span>
+        <span class="c1"># Only scan explicitly provided paths or built-in arch_eval.plugins</span>
+        <span class="n">modules_to_scan</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">plugin_paths</span><span class="p">:</span>
+            <span class="c1"># Scan only user-provided paths</span>
+            <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">plugin_paths</span><span class="p">:</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_load_plugin_from_module</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">finder</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ispkg</span> <span class="ow">in</span> <span class="n">pkgutil</span><span class="o">.</span><span class="n">iter_modules</span><span class="p">([</span><span class="n">path</span><span class="p">]):</span>
+                        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;arch_eval_plugin_&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;_plugin&quot;</span><span class="p">):</span>
+                            <span class="n">modules_to_scan</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">finder</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ispkg</span><span class="p">))</span>
                 <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load plugin </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to scan path </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Only scan built-in arch_eval.plugins</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="kn">import</span><span class="w"> </span><span class="nn">arch_eval.plugins</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plugins_pkg</span>
+
+                <span class="n">plugins_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">plugins_pkg</span><span class="o">.</span><span class="vm">__file__</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">finder</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ispkg</span> <span class="ow">in</span> <span class="n">pkgutil</span><span class="o">.</span><span class="n">iter_modules</span><span class="p">([</span><span class="n">plugins_path</span><span class="p">]):</span>
+                    <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;arch_eval_plugin_&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;_plugin&quot;</span><span class="p">):</span>
+                        <span class="n">modules_to_scan</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">finder</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ispkg</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to scan built-in plugins: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">finder</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ispkg</span> <span class="ow">in</span> <span class="n">modules_to_scan</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_load_plugin_from_module</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load plugin </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Discovered </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_plugins</span><span class="p">)</span><span class="si">}</span><span class="s2"> global plugins&quot;</span><span class="p">)</span></div>
 
 
@@ -427,7 +457,7 @@
       
     </aside>
   </div>
-</div><script src="../../../_static/documentation_options.js?v=938c9ccc"></script>
+</div><script src="../../../_static/documentation_options.js?v=8d563738"></script>
     <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/scripts/furo.js?v=46bd48cc"></script>

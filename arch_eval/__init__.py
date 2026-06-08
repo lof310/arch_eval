@@ -1,6 +1,6 @@
 """arch_eval: High-level library for easy architecture evaluation of ML models."""
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 from arch_eval.core.benchmark import Benchmark
 from arch_eval.core.callbacks import (Callback, EarlyStopping,

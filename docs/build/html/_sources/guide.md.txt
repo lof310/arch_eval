@@ -9,21 +9,22 @@ This guide walks you through the main features of **arch_eval** and shows how to
 git clone --depth=1 https://github.com/lof310/arch_eval.git
 cd arch_eval
 
-# Install in Development Model (Recommended)
+# Install in Development Mode (Recommended)
 pip install -e .
 
 # Install Normally
 pip install .
 
-# Or install from PyPI
+# Or install from PyPI (when published)
 pip install arch_eval
 ```
 
 **Dependencies**:
-- Python ≥ 3.8
-- PyTorch ≥ 1.9
-- pandas, numpy, scikit‑learn, psutil, matplotlib, seaborn
-- Optional: wandb, transformer_engine (for FP8), ffmpeg (for video)
+- Python ≥ 3.9
+- PyTorch ≥ 1.12
+- transformers ≥ 4.30.0
+- pandas, numpy, scikit-learn, psutil, matplotlib, seaborn
+- Optional: wandb, tensorboard, transformer_engine (for FP8), ffmpeg (for video), cloudpickle (for better parallel serialization)
 
 ## Core Concepts
 
@@ -120,20 +121,32 @@ For distributed training, you can also shard datasets using `dataset_shard = {"n
 - `save_plot` – list of metric names; at the end of training, PNG plots are saved.
 - `save_video` – list of metric names; a video of the metric evolution is created (requires ffmpeg).
 - `log_to_wandb` – enable Weights & Biases logging. Also set `wandb_project` and optionally `wandb_run_name`.
+- `log_to_tensorboard` – enable TensorBoard logging. Use with the `TensorBoardLogger` callback.
+- `realtime` – control real-time visualization mode: `"auto"` (default), `"gui"`, `"terminal"`, or `"none"`.
 
 ### Callbacks
 
-Callbacks are passed via the `callbacks` list. Built‑in callbacks:
+Callbacks are passed via the `callbacks` list. Built-in callbacks:
 
 ```python
-from arch_eval import EarlyStopping, ModelCheckpoint, TensorBoardLogger
+from arch_eval import EarlyStopping, ModelCheckpoint, TensorBoardLogger, LRSchedulerLogger, SlopeEarlyStopping, GradientModifierCallback, TextGeneratorCallback
 
 callbacks = [
     EarlyStopping(monitor="val_loss", patience=5),
     ModelCheckpoint(filepath="checkpoints/epoch-{epoch}.pt", monitor="val_accuracy", save_best_only=True),
-    TensorBoardLogger(log_dir="./logs")
+    TensorBoardLogger(log_dir="./logs"),
+    LRSchedulerLogger(),  # Log learning rates
 ]
 ```
+
+Available callbacks:
+- **`EarlyStopping`**: Stops training when a monitored metric stops improving
+- **`ModelCheckpoint`**: Saves model checkpoints during training
+- **`LRSchedulerLogger`**: Logs learning rates after each epoch/step
+- **`TensorBoardLogger`**: Logs metrics to TensorBoard
+- **`SlopeEarlyStopping`**: Stops training when metric slope becomes flat over a window
+- **`GradientModifierCallback`**: Custom gradient modification before optimizer step
+- **`TextGeneratorCallback`**: Generates and logs text samples for language models
 
 You can also write your own by subclassing `Callback` and overriding any of its methods.
 
@@ -464,19 +477,23 @@ This flexibility ensures compatibility with:
 
 - Console logging is configured via `setup_logging(level="INFO")`.
 - WandB integration: set `log_to_wandb=True` and `wandb_project`.
-- TensorBoard: use the `TensorBoardLogger` callback.
-- Real‑time window: `realtime=True` (requires an interactive backend, e.g., TkAgg).
+- TensorBoard: use the `TensorBoardLogger` callback or set `log_to_tensorboard=True`.
+- Real-time window: `realtime="auto"` (default) tries GUI first, falls back to terminal. Options: `"gui"`, `"terminal"`, `"none"`.
 - Video recording: `save_video=["loss", "accuracy"]` – frames are saved and assembled with ffmpeg at the end.
+- Plot saving: `save_plot=["loss", "accuracy"]` – saves publication-ready PNG plots at the end of training.
 
 ## Best Practices
 
 1. **Use `seed` for reproducibility** – set `seed=42` and optionally `deterministic=True`.
 2. **Start with synthetic data** to quickly test your pipeline.
-3. **Monitor GPU memory** with `memory_summary()` or the real‑time window.
-4. **For hyperparameter search**, disable realtime plots (`realtime=False`) to avoid GUI overhead.
+3. **Monitor GPU memory** with `memory_summary()` or the real-time window.
+4. **For hyperparameter search**, disable realtime plots (`realtime="none"`) to avoid GUI overhead.
 5. **When benchmarking on GPU**, prefer sequential execution or threads; processes may not work well with CUDA.
 6. **Save checkpoints regularly** with `ModelCheckpoint` to recover from interruptions.
 7. **Use `profiler` to identify bottlenecks** in your data loading or model forward/backward.
+8. **Enable gradient checkpointing** for large models to reduce memory usage.
+9. **Use mixed precision** (`mixed_precision=True`) for faster training on modern GPUs.
+10. **Install `cloudpickle`** for better serialization when using process-based parallelism.
 
 ## Next Steps
 

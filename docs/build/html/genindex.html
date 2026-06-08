@@ -4,7 +4,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="#"><link rel="search" title="Search" href="search.html">
 
-    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 --><title>Index - arch_eval 0.2.0 documentation</title>
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 --><title>Index - arch_eval 1.0.0 documentation</title>
 <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -159,7 +159,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="index.html"><div class="brand">arch_eval 0.2.0 documentation</div></a>
+      <a href="index.html"><div class="brand">arch_eval 1.0.0 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -180,7 +180,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
   
-  <span class="sidebar-brand-text">arch_eval 0.2.0 documentation</span>
+  <span class="sidebar-brand-text">arch_eval 1.0.0 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -192,7 +192,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quick Start</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="guide.html">User Guide</a></li>
 </ul>
@@ -200,7 +200,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API Reference</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Usage Examples</span></p>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Usage Examples</a></li>
 </ul>
@@ -298,6 +298,8 @@
     <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api.html#arch_eval.Callback.after_training">after_training() (arch_eval.Callback method)</a>
 </li>
+        <li><a href="api.html#arch_eval.core.config.BaseConfig.apply_transforms">apply_transforms (arch_eval.core.config.BaseConfig attribute)</a>
+</li>
     </ul></td>
   </tr></table>
 </section>
@@ -334,13 +336,17 @@
 </li>
         <li><a href="api.html#arch_eval.TrainingConfig.checkpoint_metric">checkpoint_metric (arch_eval.TrainingConfig attribute)</a>
 </li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api.html#arch_eval.viz.RealtimeWindow.close">close() (arch_eval.viz.RealtimeWindow method)</a>
 </li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api.html#arch_eval.core.config.BaseConfig.collate_fn">collate_fn (arch_eval.core.config.BaseConfig attribute)</a>
 </li>
         <li><a href="api.html#arch_eval.BenchmarkConfig.compare_metrics">compare_metrics (arch_eval.BenchmarkConfig attribute)</a>
+</li>
+        <li><a href="api.html#arch_eval.TrainingConfig.compile_kwargs">compile_kwargs (arch_eval.TrainingConfig attribute)</a>
+</li>
+        <li><a href="api.html#arch_eval.TrainingConfig.compile_model">compile_model (arch_eval.TrainingConfig attribute)</a>
 </li>
         <li><a href="api.html#arch_eval.metrics.MetricCalculator.compute_confusion_matrix">compute_confusion_matrix() (arch_eval.metrics.MetricCalculator method)</a>
 </li>
@@ -368,12 +374,14 @@
 </li>
         <li><a href="api.html#arch_eval.data.DatasetHandler">DatasetHandler (class in arch_eval.data)</a>
 </li>
-        <li><a href="api.html#arch_eval.logging.LoggerAdapter.debug">debug() (arch_eval.logging.LoggerAdapter method)</a>
+        <li><a href="api.html#arch_eval.TrainingConfig.debug">debug (arch_eval.TrainingConfig attribute)</a>
 </li>
-        <li><a href="api.html#arch_eval.core.config.BaseConfig.deterministic">deterministic (arch_eval.core.config.BaseConfig attribute)</a>
+        <li><a href="api.html#arch_eval.logging.LoggerAdapter.debug">debug() (arch_eval.logging.LoggerAdapter method)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api.html#arch_eval.core.config.BaseConfig.deterministic">deterministic (arch_eval.core.config.BaseConfig attribute)</a>
+</li>
         <li><a href="api.html#arch_eval.core.config.BaseConfig.device">device (arch_eval.core.config.BaseConfig attribute)</a>
 </li>
         <li><a href="api.html#arch_eval.PluginManager.discover_plugins">discover_plugins() (arch_eval.PluginManager method)</a>
@@ -486,15 +494,19 @@
 </li>
         <li><a href="api.html#arch_eval.core.config.BaseConfig.log_interval">log_interval (arch_eval.core.config.BaseConfig attribute)</a>
 </li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api.html#arch_eval.core.config.BaseConfig.log_to_tensorboard">log_to_tensorboard (arch_eval.core.config.BaseConfig attribute)</a>
 </li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api.html#arch_eval.core.config.BaseConfig.log_to_wandb">log_to_wandb (arch_eval.core.config.BaseConfig attribute)</a>
 </li>
         <li><a href="api.html#arch_eval.logging.LoggerAdapter">LoggerAdapter (class in arch_eval.logging)</a>
 </li>
+        <li><a href="api.html#arch_eval.TrainingConfig.loss_fn_extractor">loss_fn_extractor (arch_eval.TrainingConfig attribute)</a>
+</li>
         <li><a href="api.html#arch_eval.TrainingConfig.loss_function">loss_function (arch_eval.TrainingConfig attribute)</a>
+</li>
+        <li><a href="api.html#arch_eval.TrainingConfig.loss_mode">loss_mode (arch_eval.TrainingConfig attribute)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -532,16 +544,18 @@
 </li>
         <li><a href="api.html#arch_eval.Callback.on_batch_start">on_batch_start() (arch_eval.Callback method)</a>
 </li>
+        <li><a href="api.html#arch_eval.Callback.on_before_optimizer_step">on_before_optimizer_step() (arch_eval.Callback method)</a>
+</li>
         <li><a href="api.html#arch_eval.Callback.on_checkpoint">on_checkpoint() (arch_eval.Callback method)</a>
 </li>
         <li><a href="api.html#arch_eval.Callback.on_epoch_end">on_epoch_end() (arch_eval.Callback method)</a>
 </li>
         <li><a href="api.html#arch_eval.Callback.on_epoch_start">on_epoch_start() (arch_eval.Callback method)</a>
 </li>
-        <li><a href="api.html#arch_eval.Callback.on_exception">on_exception() (arch_eval.Callback method)</a>
-</li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api.html#arch_eval.Callback.on_exception">on_exception() (arch_eval.Callback method)</a>
+</li>
         <li><a href="api.html#arch_eval.Callback.on_log">on_log() (arch_eval.Callback method)</a>
 </li>
         <li><a href="api.html#arch_eval.Callback.on_optimizer_step">on_optimizer_step() (arch_eval.Callback method)</a>
@@ -568,13 +582,15 @@
 </li>
         <li><a href="api.html#arch_eval.viz.PlotSaver">PlotSaver (class in arch_eval.viz)</a>
 </li>
-    </ul></td>
-    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api.html#arch_eval.PluginManager">PluginManager (class in arch_eval)</a>
 </li>
+    </ul></td>
+    <td style="width: 33%; vertical-align: top;"><ul>
         <li><a href="api.html#arch_eval.data.DatasetHandler.prepare_loaders">prepare_loaders() (arch_eval.data.DatasetHandler method)</a>
 </li>
         <li><a href="api.html#arch_eval.TrainingConfig.profiler">profiler (arch_eval.TrainingConfig attribute)</a>
+</li>
+        <li><a href="api.html#arch_eval.TrainingConfig.progress_bar">progress_bar (arch_eval.TrainingConfig attribute)</a>
 </li>
     </ul></td>
   </tr></table>
@@ -590,12 +606,14 @@
 </li>
         <li><a href="api.html#arch_eval.viz.VideoRecorder.record_step">record_step() (arch_eval.viz.VideoRecorder method)</a>
 </li>
-        <li><a href="api.html#arch_eval.Callback.register_hooks">register_hooks() (arch_eval.Callback method)</a>
+        <li><a href="api.html#arch_eval.data.DatasetHandler.register_factory">register_factory() (arch_eval.data.DatasetHandler method)</a>
 </li>
-        <li><a href="api.html#arch_eval.PluginManager.register_local_hook">register_local_hook() (arch_eval.PluginManager method)</a>
+        <li><a href="api.html#arch_eval.Callback.register_hooks">register_hooks() (arch_eval.Callback method)</a>
 </li>
     </ul></td>
     <td style="width: 33%; vertical-align: top;"><ul>
+        <li><a href="api.html#arch_eval.PluginManager.register_local_hook">register_local_hook() (arch_eval.PluginManager method)</a>
+</li>
         <li><a href="api.html#arch_eval.metrics.MetricCalculator.reset_confusion_matrix">reset_confusion_matrix() (arch_eval.metrics.MetricCalculator method)</a>
 </li>
         <li><a href="api.html#arch_eval.BenchmarkConfig.retry_failed">retry_failed (arch_eval.BenchmarkConfig attribute)</a>
@@ -764,7 +782,7 @@
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=938c9ccc"></script>
+</div><script src="_static/documentation_options.js?v=8d563738"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>

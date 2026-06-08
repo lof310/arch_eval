@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>arch_eval.core.callbacks - arch_eval 0.2.0 documentation</title>
+        <title>arch_eval.core.callbacks - arch_eval 1.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -160,7 +160,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../../index.html"><div class="brand">arch_eval 0.2.0 documentation</div></a>
+      <a href="../../../index.html"><div class="brand">arch_eval 1.0.0 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -181,7 +181,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../../../index.html">
   
-  <span class="sidebar-brand-text">arch_eval 0.2.0 documentation</span>
+  <span class="sidebar-brand-text">arch_eval 1.0.0 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -193,7 +193,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../guide.html">User Guide</a></li>
 </ul>
@@ -201,7 +201,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Usage Examples</span></p>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Usage Examples</a></li>
 </ul>
@@ -245,8 +245,9 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -323,6 +324,13 @@
         <span class="k">pass</span></div>
 
 
+<div class="viewcode-block" id="Callback.on_before_optimizer_step">
+<a class="viewcode-back" href="../../../api.html#arch_eval.Callback.on_before_optimizer_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_before_optimizer_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trainer</span><span class="p">,</span> <span class="n">gradients</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Called before optimizer.step() with list of gradients per param group.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
 <div class="viewcode-block" id="Callback.on_optimizer_step">
 <a class="viewcode-back" href="../../../api.html#arch_eval.Callback.on_optimizer_step">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">on_optimizer_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trainer</span><span class="p">):</span>
@@ -363,6 +371,7 @@
             <span class="s2">&quot;on_validation_start&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_validation_start</span><span class="p">,</span>
             <span class="s2">&quot;on_validation_end&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_validation_end</span><span class="p">,</span>
             <span class="s2">&quot;on_backward&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_backward</span><span class="p">,</span>
+            <span class="s2">&quot;on_before_optimizer_step&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_before_optimizer_step</span><span class="p">,</span>
             <span class="s2">&quot;on_optimizer_step&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_optimizer_step</span><span class="p">,</span>
             <span class="s2">&quot;on_log&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_log</span><span class="p">,</span>
             <span class="s2">&quot;on_checkpoint&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">on_checkpoint</span><span class="p">,</span>
@@ -414,11 +423,40 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">best</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;min&quot;</span> <span class="k">else</span> <span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sanitize_filepath</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">metrics</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sanitize filepath by using only epoch and sanitized metric values.&quot;&quot;&quot;</span>
+        <span class="c1"># Filter out keys that contain path separators or colons</span>
+        <span class="n">safe_metrics</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">metrics</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">k</span> <span class="ow">and</span> <span class="s2">&quot;:&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">k</span> <span class="ow">and</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">k</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c1"># Round numeric values to avoid long decimals</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+                        <span class="n">safe_metrics</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">safe_metrics</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)[:</span><span class="mi">20</span><span class="p">]</span>  <span class="c1"># Truncate strings</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+                    <span class="k">pass</span>
+        <span class="c1"># Build a safe suffix from metrics</span>
+        <span class="n">suffix_parts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">safe_metrics</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">suffix_parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">suffix_parts</span><span class="p">)[:</span><span class="mi">100</span><span class="p">]</span>  <span class="c1"># Limit length</span>
+        <span class="c1"># Use epoch as base with optional metric suffix</span>
+        <span class="n">base_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filepath</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">epoch</span><span class="o">=</span><span class="n">epoch</span><span class="p">)</span> <span class="k">if</span> <span class="s2">&quot;</span><span class="si">{epoch}</span><span class="s2">&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">filepath</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">filepath</span>
+        <span class="k">if</span> <span class="n">suffix</span><span class="p">:</span>
+            <span class="c1"># Insert suffix before extension</span>
+            <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="ow">in</span> <span class="n">base_path</span><span class="p">:</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">ext</span> <span class="o">=</span> <span class="n">base_path</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_path</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="n">base_path</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">on_epoch_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trainer</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">metrics</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">monitor</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
             <span class="k">return</span>
         <span class="n">current</span> <span class="o">=</span> <span class="n">metrics</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">monitor</span><span class="p">]</span>
-        <span class="n">filepath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filepath</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">epoch</span><span class="o">=</span><span class="n">epoch</span><span class="p">,</span> <span class="o">**</span><span class="n">metrics</span><span class="p">)</span>
+        <span class="n">filepath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sanitize_filepath</span><span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">metrics</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">save_best_only</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_save</span><span class="p">(</span><span class="n">trainer</span><span class="p">,</span> <span class="n">filepath</span><span class="p">,</span> <span class="n">is_best</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="k">return</span>
@@ -455,6 +493,106 @@
                 <span class="n">trainer</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_log&quot;</span><span class="p">,</span> <span class="n">trainer</span><span class="p">,</span> <span class="p">{</span><span class="sa">f</span><span class="s2">&quot;lr_opt</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">_group</span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">pg</span><span class="p">[</span><span class="s2">&quot;lr&quot;</span><span class="p">]},</span> <span class="n">epoch</span><span class="p">)</span>
 
 
+<span class="k">class</span><span class="w"> </span><span class="nc">TextGeneratorCallback</span><span class="p">(</span><span class="n">Callback</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate and log text samples during evaluation for language model sanity checks.</span>
+<span class="sd">    At each eval_interval, takes a fixed prompt from dataset_params.get(&quot;eval_prompt&quot;),</span>
+<span class="sd">    generates max_new_tokens via the model&#39;s generate method (if available), and logs</span>
+<span class="sd">    the decoded text to wandb or prints it.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eval_prompt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">max_new_tokens</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span> <span class="n">num_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eval_prompt</span> <span class="o">=</span> <span class="n">eval_prompt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_new_tokens</span> <span class="o">=</span> <span class="n">max_new_tokens</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span> <span class="o">=</span> <span class="n">num_samples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tokenizer</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_tokenizer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trainer</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Try to get tokenizer from model or config.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokenizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokenizer</span>
+        <span class="c1"># Check if model has a tokenizer attribute</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;tokenizer&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tokenizer</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">tokenizer</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokenizer</span>
+        <span class="c1"># Check if config has tokenizer in dataset_params</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;dataset_params&quot;</span><span class="p">):</span>
+            <span class="n">tok</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">dataset_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tokenizer&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tok</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_tokenizer</span> <span class="o">=</span> <span class="n">tok</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokenizer</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_validation_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trainer</span><span class="p">,</span> <span class="n">metrics</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate text samples at the end of validation.&quot;&quot;&quot;</span>
+        <span class="c1"># Only generate on specified eval intervals</span>
+        <span class="k">if</span> <span class="n">trainer</span><span class="o">.</span><span class="n">current_epoch</span> <span class="o">%</span> <span class="n">trainer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">eval_interval</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="c1"># Get prompt from config if not set</span>
+        <span class="n">prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eval_prompt</span>
+        <span class="k">if</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;dataset_params&quot;</span><span class="p">):</span>
+            <span class="n">prompt</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">dataset_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;eval_prompt&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Default prompts for demonstration</span>
+            <span class="n">default_prompts</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="s2">&quot;The future of artificial intelligence&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;In a world where machines can think&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Once upon a time&quot;</span><span class="p">,</span>
+            <span class="p">]</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+
+            <span class="n">prompt</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">default_prompts</span><span class="p">)</span>
+        <span class="n">tokenizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_tokenizer</span><span class="p">(</span><span class="n">trainer</span><span class="p">)</span>
+        <span class="c1"># Check if model has generate method</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">model</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;module&quot;</span><span class="p">):</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">module</span>  <span class="c1"># Unwrap DDP/FSDP</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;generate&quot;</span><span class="p">):</span>
+            <span class="n">trainer</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model does not have generate method, skipping text generation&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+            <span class="c1"># Tokenize prompt</span>
+            <span class="k">if</span> <span class="n">tokenizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">inputs</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;pt&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="n">input_ids</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;input_ids&quot;</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+                <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;attention_mask&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Fallback: try to use model&#39;s encode method or create simple tokenization</span>
+                <span class="n">trainer</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No tokenizer available, using dummy tokens&quot;</span><span class="p">)</span>
+                <span class="n">input_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="n">attention_mask</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1"># Generate</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+                <span class="n">outputs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span>
+                    <span class="n">input_ids</span><span class="p">,</span>
+                    <span class="n">max_new_tokens</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_new_tokens</span><span class="p">,</span>
+                    <span class="n">do_sample</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">temperature</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+                    <span class="n">attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">,</span>
+                    <span class="n">pad_token_id</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">tokenizer</span><span class="p">,</span> <span class="s2">&quot;pad_token_id&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">tokenizer</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="c1"># Decode output</span>
+            <span class="k">if</span> <span class="n">tokenizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">generated_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">skip_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">generated_text</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;[Generated tokens: </span><span class="si">{</span><span class="n">outputs</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">] (no tokenizer for decoding)&quot;</span>
+            <span class="c1"># Log result</span>
+            <span class="n">log_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="o">*</span><span class="mi">50</span><span class="si">}</span><span class="se">\n</span><span class="s2">Prompt: </span><span class="si">{</span><span class="n">prompt</span><span class="si">}</span><span class="se">\n</span><span class="s2">Generated: </span><span class="si">{</span><span class="n">generated_text</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="o">*</span><span class="mi">50</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">trainer</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">log_msg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">trainer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_to_wandb</span><span class="p">:</span>
+                <span class="kn">import</span><span class="w"> </span><span class="nn">wandb</span>
+
+                <span class="n">wandb</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;generated_text&quot;</span><span class="p">:</span> <span class="n">wandb</span><span class="o">.</span><span class="n">Html</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&lt;pre&gt;</span><span class="si">{</span><span class="n">log_msg</span><span class="si">}</span><span class="s2">&lt;/pre&gt;&quot;</span><span class="p">),</span>
+                        <span class="s2">&quot;generation_step&quot;</span><span class="p">:</span> <span class="n">trainer</span><span class="o">.</span><span class="n">current_epoch</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">trainer</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Text generation failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
 <span class="k">class</span><span class="w"> </span><span class="nc">TensorBoardLogger</span><span class="p">(</span><span class="n">Callback</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Log metrics to TensorBoard.&quot;&quot;&quot;</span>
 
@@ -475,6 +613,45 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">on_train_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trainer</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">writer</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SlopeEarlyStopping</span><span class="p">(</span><span class="n">Callback</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stop training when the metric&#39;s slope over a window becomes flat.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">monitor</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;val_loss&quot;</span><span class="p">,</span> <span class="n">window</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;min&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">monitor</span> <span class="o">=</span> <span class="n">monitor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="n">window</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_epoch_end</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trainer</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">metrics</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">monitor</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metrics</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">monitor</span><span class="p">])</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">recent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="p">:]</span>
+        <span class="n">slope</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">),</span> <span class="n">recent</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">improved</span> <span class="o">=</span> <span class="p">(</span><span class="n">slope</span> <span class="o">&lt;</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">threshold</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;min&quot;</span> <span class="k">else</span> <span class="p">(</span><span class="n">slope</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">improved</span><span class="p">:</span>
+            <span class="n">trainer</span><span class="o">.</span><span class="n">stop_training</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;SlopeEarlyStopping: slope=</span><span class="si">{</span><span class="n">slope</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">&#39;&lt;&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s1">&#39;min&#39;</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&gt;&#39;</span><span class="si">}</span><span class="s2"> threshold=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">threshold</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">GradientModifierCallback</span><span class="p">(</span><span class="n">Callback</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generic gradient modification hook.</span>
+<span class="sd">    Stores a user function that is called before optimizer.step() with the list of gradients.</span>
+<span class="sd">    The function receives (trainer, gradients) where gradients is a flattened list per param group.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">modify_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]],</span> <span class="kc">None</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">modify_fn</span> <span class="o">=</span> <span class="n">modify_fn</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">on_before_optimizer_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trainer</span><span class="p">,</span> <span class="n">gradients</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">modify_fn</span><span class="p">(</span><span class="n">trainer</span><span class="p">,</span> <span class="n">gradients</span><span class="p">)</span>
 </pre></div>
         </article>
       </div>
@@ -507,7 +684,7 @@
       
     </aside>
   </div>
-</div><script src="../../../_static/documentation_options.js?v=938c9ccc"></script>
+</div><script src="../../../_static/documentation_options.js?v=8d563738"></script>
     <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/scripts/furo.js?v=46bd48cc"></script>

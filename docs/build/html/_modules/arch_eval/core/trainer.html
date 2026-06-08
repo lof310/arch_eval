@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
 
     <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>arch_eval.core.trainer - arch_eval 0.2.0 documentation</title>
+        <title>arch_eval.core.trainer - arch_eval 1.0.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -160,7 +160,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../../../index.html"><div class="brand">arch_eval 0.2.0 documentation</div></a>
+      <a href="../../../index.html"><div class="brand">arch_eval 1.0.0 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -181,7 +181,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../../../index.html">
   
-  <span class="sidebar-brand-text">arch_eval 0.2.0 documentation</span>
+  <span class="sidebar-brand-text">arch_eval 1.0.0 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -193,7 +193,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick Start</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../guide.html">User Guide</a></li>
 </ul>
@@ -201,7 +201,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../api.html">API Reference</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Usage Examples</span></p>
+<p class="caption" role="heading"><span class="caption-text">Examples</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../examples.html">Usage Examples</a></li>
 </ul>
@@ -243,13 +243,16 @@
           <h1>Source code for arch_eval.core.trainer</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Main Trainer class for single model training.&quot;&quot;&quot;</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">gc</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">AbstractContextManager</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">psutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">wandb</span>
@@ -265,15 +268,15 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.logging.logger_config</span><span class="w"> </span><span class="kn">import</span> <span class="n">LoggerAdapter</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.metrics.calculator</span><span class="w"> </span><span class="kn">import</span> <span class="n">MetricCalculator</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.plugins.manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">PluginManager</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.profiler</span><span class="w"> </span><span class="kn">import</span> <span class="n">profiler_context</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.utils.device</span><span class="w"> </span><span class="kn">import</span> <span class="n">auto_device</span><span class="p">,</span> <span class="n">memory_summary</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.viz.viz</span><span class="w"> </span><span class="kn">import</span> <span class="n">PlotSaver</span><span class="p">,</span> <span class="n">RealtimeWindow</span><span class="p">,</span> <span class="n">VideoRecorder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.utils.device</span><span class="w"> </span><span class="kn">import</span> <span class="n">memory_summary</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.viz.viz</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span><span class="n">PlotSaver</span><span class="p">,</span> <span class="n">RealtimeWindow</span><span class="p">,</span> <span class="n">TerminalProgress</span><span class="p">,</span>
+                               <span class="n">VideoRecorder</span><span class="p">)</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">NullContext</span><span class="p">(</span><span class="n">AbstractContextManager</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Context manager that does nothing&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Context manager that does nothing.&quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">pass</span>
@@ -297,7 +300,16 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">LoggerAdapter</span><span class="p">(</span><span class="s2">&quot;trainer&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Distributed setup</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">manual_seed_all</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">deterministic</span><span class="p">:</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">use_deterministic_algorithms</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CUBLAS_WORKSPACE_CONFIG&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;:4096:8&quot;</span>
+
         <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">distributed_backend</span> <span class="o">!=</span> <span class="n">DistributedBackend</span><span class="o">.</span><span class="n">NONE</span><span class="p">:</span>
             <span class="n">init_distributed</span><span class="p">(</span>
                 <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;nccl&quot;</span><span class="p">,</span>
@@ -312,14 +324,24 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="c1"># Apply dtype conversion properly</span>
         <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">dataset_handler</span> <span class="o">=</span> <span class="n">DatasetHandler</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">compile_model</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="o">.</span><span class="n">compile_kwargs</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model compiled with torch.compile&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;torch.compile failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">. Continuing without compilation.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">debug</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;DEBUG MODE: Overriding num_epochs=1, batch_size=2&quot;</span><span class="p">)</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">training_args</span><span class="p">[</span><span class="s2">&quot;num_epochs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">training_args</span><span class="p">[</span><span class="s2">&quot;batch_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset_handler</span> <span class="o">=</span> <span class="n">DatasetHandler</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">apply_transforms</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">apply_transforms</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">debug</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">train_loader</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_loader</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_handler</span><span class="o">.</span><span class="n">prepare_loaders</span><span class="p">()</span>
 
-        <span class="c1"># Validate model with a real batch (if train_loader exists)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_validate_model_with_data</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">metric_calculator</span> <span class="o">=</span> <span class="n">MetricCalculator</span><span class="p">(</span>
@@ -330,25 +352,49 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_setup_schedulers</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_setup_loss_function</span><span class="p">()</span>
 
-        <span class="c1"># Mixed precision</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_amp</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">mixed_precision</span> <span class="ow">and</span> <span class="n">config</span><span class="o">.</span><span class="n">device</span> <span class="o">==</span> <span class="s2">&quot;cuda&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">amp_dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_amp_dtype</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">amp</span><span class="o">.</span><span class="n">GradScaler</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_amp</span> <span class="ow">and</span> <span class="n">config</span><span class="o">.</span><span class="n">grad_scaler</span> <span class="k">else</span> <span class="kc">None</span>
 
-        <span class="c1"># Gradient checkpointing (experimental)</span>
         <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">gradient_checkpointing</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_apply_gradient_checkpointing</span><span class="p">()</span>
 
         <span class="c1"># Visualization</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">realtime</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">terminal_progress</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Handle realtime setting: &quot;auto&quot;, &quot;gui&quot;, &quot;terminal&quot;, &quot;none&quot;</span>
+        <span class="n">realtime_mode</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">realtime</span>
+        <span class="n">use_gui</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">use_terminal</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">realtime_mode</span> <span class="o">==</span> <span class="s2">&quot;gui&quot;</span><span class="p">:</span>
+            <span class="n">use_gui</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="n">realtime_mode</span> <span class="o">==</span> <span class="s2">&quot;terminal&quot;</span><span class="p">:</span>
+            <span class="n">use_terminal</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="n">realtime_mode</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
+            <span class="c1"># Auto mode: try GUI first, fallback to terminal</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.viz.viz</span><span class="w"> </span><span class="kn">import</span> <span class="n">_gui_available</span>
+
+            <span class="k">if</span> <span class="n">_gui_available</span><span class="p">():</span>
+                <span class="n">use_gui</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">use_terminal</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># &quot;none&quot; means no visualization</span>
+        <span class="k">if</span> <span class="n">use_gui</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="n">RealtimeWindow</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">metric_names</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">viz_metrics</span><span class="p">)</span>
                 <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">,</span> <span class="s2">&quot;disabled&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="n">use_terminal</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to initialize realtime window: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to initialize realtime window (GUI unavailable): </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">use_terminal</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">use_terminal</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">terminal_progress</span> <span class="o">=</span> <span class="n">TerminalProgress</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">metric_names</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">viz_metrics</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using terminal-based progress display&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e2</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to initialize terminal progress: </span><span class="si">{</span><span class="n">e2</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">video_recorder</span> <span class="o">=</span> <span class="n">VideoRecorder</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">save_video</span><span class="p">)</span> <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">save_video</span> <span class="k">else</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">plot_saver</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -374,14 +420,22 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">accumulation_steps</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">gradient_accumulation_steps</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">current_accum_step</span> <span class="o">=</span> <span class="mi">0</span>
 
-        <span class="c1"># Initialize checkpoint best metric</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_best_metric</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Capture environment info for reproducibility</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">environment_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capture_environment</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Environment: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">environment_info</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">log_to_wandb</span><span class="p">:</span>
+            <span class="n">wandb</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">environment_info</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Trainer initialized on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">memory_summary</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_amp_dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_amp</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="c1"># Mixed precision is only supported on CUDA</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">type</span> <span class="o">!=</span> <span class="s2">&quot;cuda&quot;</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;mixed_precision=True is ignored on CPU. Disabling AMP.&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">use_amp</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="k">return</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">mixed_precision_dtype</span> <span class="o">==</span> <span class="n">MixedPrecisionDtype</span><span class="o">.</span><span class="n">FLOAT16</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">float16</span>
@@ -391,6 +445,34 @@
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">float8_e4m3fn</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">torch</span><span class="p">,</span> <span class="s2">&quot;float8_e4m3fn&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">torch</span><span class="o">.</span><span class="n">float16</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">float16</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_capture_environment</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Capture environment information for reproducibility.&quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">platform</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+
+        <span class="kn">import</span><span class="w"> </span><span class="nn">arch_eval</span>
+
+        <span class="n">info</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;python_version&quot;</span><span class="p">:</span> <span class="n">sys</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+            <span class="s2">&quot;torch_version&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">__version__</span><span class="p">,</span>
+            <span class="s2">&quot;arch_eval_version&quot;</span><span class="p">:</span> <span class="n">arch_eval</span><span class="o">.</span><span class="n">__version__</span><span class="p">,</span>
+            <span class="s2">&quot;platform&quot;</span><span class="p">:</span> <span class="n">platform</span><span class="o">.</span><span class="n">platform</span><span class="p">(),</span>
+            <span class="s2">&quot;cpu&quot;</span><span class="p">:</span> <span class="n">platform</span><span class="o">.</span><span class="n">processor</span><span class="p">(),</span>
+            <span class="s2">&quot;cpu_cores&quot;</span><span class="p">:</span> <span class="n">psutil</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(</span><span class="n">logical</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="s2">&quot;cpu_threads&quot;</span><span class="p">:</span> <span class="n">psutil</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(</span><span class="n">logical</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="s2">&quot;ram_total_gb&quot;</span><span class="p">:</span> <span class="n">psutil</span><span class="o">.</span><span class="n">virtual_memory</span><span class="p">()</span><span class="o">.</span><span class="n">total</span> <span class="o">/</span> <span class="mi">2</span><span class="o">**</span><span class="mi">30</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="n">info</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;cuda_available&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s2">&quot;cuda_version&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">cuda</span><span class="p">,</span>
+                    <span class="s2">&quot;gpu_name&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_name</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">device_count</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="s2">&quot;gpu_count&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">device_count</span><span class="p">(),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">info</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_apply_gradient_checkpointing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Experimental: attempts to enable gradient checkpointing on specified modules.&quot;&quot;&quot;</span>
@@ -411,20 +493,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No training loader – skipping model validation.&quot;</span><span class="p">)</span>
             <span class="k">return</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># Get one batch</span>
             <span class="n">data</span><span class="p">,</span> <span class="n">targets</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_loader</span><span class="p">))</span>
             <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
             <span class="n">targets</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
             <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
                 <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-                <span class="c1"># Handle models that return tuples or dicts (common in transformers)</span>
-                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
-                    <span class="c1"># For models returning (logits, loss) or similar</span>
-                    <span class="k">pass</span>
-                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-                    <span class="c1"># For models returning dict with &#39;logits&#39;, &#39;loss&#39;, etc.</span>
-                    <span class="k">pass</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model validation passed.&quot;</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
@@ -505,44 +579,78 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="s2">&quot;loss_function&quot;</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">MSELoss</span><span class="p">())</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_compute_loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">targets</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute loss from model output, handling various output formats.&quot;&quot;&quot;</span>
-        <span class="c1"># Handle models that return tuples (e.g., (logits, loss), (loss, logits))</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute loss from model output, handling various output formats.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            output: Model output (tensor, tuple, dict, or dataclass).</span>
+<span class="sd">            targets: Target tensor for computing loss with criterion.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Computed loss as a scalar tensor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">loss_mode</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;loss_mode&quot;</span><span class="p">,</span> <span class="s2">&quot;auto&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">loss_mode</span> <span class="o">==</span> <span class="s2">&quot;model&quot;</span><span class="p">:</span>
+            <span class="c1"># Handle Hugging Face style output objects</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;loss&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">output</span><span class="o">.</span><span class="n">loss</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">loss</span>
+            <span class="c1"># Handle tuple outputs</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">second</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">second</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">second</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">second</span>
+                <span class="n">first</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">first</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">first</span>
+            <span class="c1"># Handle dict outputs</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;loss&quot;</span> <span class="ow">in</span> <span class="n">output</span> <span class="ow">and</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;loss&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;loss&quot;</span><span class="p">]</span>
+            <span class="c1"># Fallback to criterion</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;logits&quot;</span><span class="p">,</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">loss_mode</span> <span class="o">==</span> <span class="s2">&quot;criterion&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;logits&quot;</span><span class="p">,</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;logits&quot;</span><span class="p">):</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">logits</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="c1"># Auto mode - use original heuristic behavior</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">loss_fn_extractor</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">loss_fn_extractor</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;loss_fn_extractor failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">, falling back to heuristic&quot;</span><span class="p">)</span>
+        <span class="c1"># Handle tuple outputs</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
-            <span class="c1"># If second element is a scalar tensor, assume it&#39;s the loss</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
                 <span class="n">second</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">second</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">second</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="k">return</span> <span class="n">second</span>
-                <span class="c1"># Check if first element is the loss (some models return (loss, ...))</span>
                 <span class="n">first</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">first</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                     <span class="k">return</span> <span class="n">first</span>
-            <span class="c1"># Otherwise use first element as logits/predictions</span>
             <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        
-        <span class="c1"># Handle models that return dicts (common in transformers)</span>
+
+        <span class="c1"># Handle dict outputs</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="c1"># Look for &#39;loss&#39; key first, but only if it&#39;s not None</span>
-            <span class="k">if</span> <span class="s1">&#39;loss&#39;</span> <span class="ow">in</span> <span class="n">output</span> <span class="ow">and</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="s1">&#39;loss&#39;</span><span class="p">]</span>
-            <span class="c1"># Fall back to &#39;logits&#39; or first value for criterion</span>
-            <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;logits&#39;</span><span class="p">,</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
-        
+            <span class="k">if</span> <span class="s2">&quot;loss&quot;</span> <span class="ow">in</span> <span class="n">output</span> <span class="ow">and</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;loss&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;loss&quot;</span><span class="p">]</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;logits&quot;</span><span class="p">,</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+
         <span class="c1"># Handle list outputs</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        
-        <span class="c1"># Handle Hugging Face style output objects (e.g., CausalLMOutput, SequenceClassifierOutput)</span>
-        <span class="c1"># These are dataclass-like objects with .loss and .logits attributes</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;loss&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">output</span><span class="o">.</span><span class="n">loss</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+
+        <span class="c1"># Handle Hugging Face style output objects</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;loss&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">output</span><span class="o">.</span><span class="n">loss</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">loss</span>
-        
-        <span class="c1"># Now apply criterion to get loss if not already computed</span>
+
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Trainer.train">
 <a class="viewcode-back" href="../../../api.html#arch_eval.Trainer.train">[docs]</a>
-    <span class="nd">@auto_device</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting training&quot;</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
@@ -550,37 +658,18 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;before_training&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
 
             <span class="n">num_epochs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">training_args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_epochs&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="c1"># Setup profiler only if enabled in config</span>
+            <span class="n">use_profiler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">profiler</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">profiler</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;enabled&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">use_profiler</span><span class="p">:</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">arch_eval.profiler</span><span class="w"> </span><span class="kn">import</span> <span class="n">profiler_context</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">profiler_context</span> <span class="o">=</span> <span class="kc">None</span>
 
-            <span class="k">with</span> <span class="n">profiler_context</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span> <span class="k">as</span> <span class="n">prof</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_training</span><span class="p">:</span>
-                        <span class="k">break</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">current_epoch</span> <span class="o">=</span> <span class="n">epoch</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_epoch_start&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>
-
-                    <span class="n">train_metrics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_train_epoch</span><span class="p">()</span>
-                    <span class="n">val_metrics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_epoch</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_loader</span> <span class="k">else</span> <span class="p">{}</span>
-                    <span class="n">epoch_metrics</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">train_metrics</span><span class="p">,</span> <span class="o">**</span><span class="n">val_metrics</span><span class="p">}</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">epoch_metrics</span><span class="p">)</span>
-
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_step_schedulers</span><span class="p">(</span><span class="n">epoch_metrics</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="s2">&quot;epoch&quot;</span><span class="p">)</span>
-
-                    <span class="k">if</span> <span class="n">epoch</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_interval</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">_log_metrics</span><span class="p">(</span><span class="n">epoch_metrics</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>
-
-                    <span class="n">plugin_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_epoch_end&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">epoch_metrics</span><span class="p">)</span>
-                    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">plugin_results</span><span class="p">:</span>
-                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-                            <span class="n">epoch_metrics</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">early_stopping_patience</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_early_stopping</span><span class="p">(</span><span class="n">epoch_metrics</span><span class="p">):</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Early stopping triggered at epoch </span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                        <span class="k">break</span>
-
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_save_checkpoint</span><span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">epoch_metrics</span><span class="p">)</span>
-
-                    <span class="k">if</span> <span class="n">prof</span><span class="p">:</span>
-                        <span class="n">prof</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">use_profiler</span> <span class="ow">and</span> <span class="n">profiler_context</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">profiler_context</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span> <span class="k">as</span> <span class="n">prof</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_run_training_loop</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">,</span> <span class="n">prof</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_run_training_loop</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">,</span> <span class="n">prof</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">eval_on_test</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_loader</span><span class="p">:</span>
                 <span class="n">test_metrics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_loader</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">)</span>
@@ -603,6 +692,8 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">video_recorder</span><span class="o">.</span><span class="n">save_video</span><span class="p">(</span><span class="s2">&quot;training_video&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">terminal_progress</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">terminal_progress</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_to_wandb</span><span class="p">:</span>
                 <span class="n">wandb</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">distributed_backend</span> <span class="o">!=</span> <span class="n">DistributedBackend</span><span class="o">.</span><span class="n">NONE</span><span class="p">:</span>
@@ -612,14 +703,49 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_history_dict</span><span class="p">()</span></div>
 
 
-    <span class="nd">@auto_device</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_training_loop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">prof</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute the main training loop over epochs.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop_training</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_epoch</span> <span class="o">=</span> <span class="n">epoch</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_epoch_start&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>
+
+            <span class="n">train_metrics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_train_epoch</span><span class="p">()</span>
+            <span class="n">val_metrics</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_epoch</span><span class="p">()</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_loader</span> <span class="k">else</span> <span class="p">{}</span>
+            <span class="n">epoch_metrics</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">train_metrics</span><span class="p">,</span> <span class="o">**</span><span class="n">val_metrics</span><span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">epoch_metrics</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_step_schedulers</span><span class="p">(</span><span class="n">epoch_metrics</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="s2">&quot;epoch&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">epoch</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_interval</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_log_metrics</span><span class="p">(</span><span class="n">epoch_metrics</span><span class="p">,</span> <span class="n">epoch</span><span class="p">)</span>
+
+            <span class="n">plugin_results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_epoch_end&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">epoch_metrics</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">plugin_results</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">epoch_metrics</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">early_stopping_patience</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_early_stopping</span><span class="p">(</span><span class="n">epoch_metrics</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Early stopping triggered at epoch </span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_save_checkpoint</span><span class="p">(</span><span class="n">epoch</span><span class="p">,</span> <span class="n">epoch_metrics</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">prof</span><span class="p">:</span>
+                <span class="n">prof</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_train_epoch</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Train for one epoch.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary of training metrics for the epoch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
         <span class="n">total_loss</span> <span class="o">=</span> <span class="mf">0.0</span>
         <span class="n">metric_accum</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
         <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">autocast</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">amp</span><span class="o">.</span><span class="n">autocast</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_amp</span> <span class="k">else</span> <span class="n">NullContext</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">current_accum_step</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_accum_step</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># Reset accumulation counter at start of epoch</span>
 
         <span class="k">for</span> <span class="n">batch_idx</span><span class="p">,</span> <span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_loader</span><span class="p">):</span>
             <span class="n">data</span><span class="p">,</span> <span class="n">targets</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">),</span> <span class="n">targets</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
@@ -648,6 +774,16 @@
                         <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">:</span>
                             <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="o">.</span><span class="n">unscale_</span><span class="p">(</span><span class="n">opt</span><span class="p">)</span>
                     <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">clip_grad_norm_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">gradient_clip</span><span class="p">)</span>
+
+                <span class="c1"># Collect gradients for on_before_optimizer_step hook</span>
+                <span class="n">gradients</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">opt</span><span class="o">.</span><span class="n">param_groups</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">group</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]:</span>
+                            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">grad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                                <span class="n">gradients</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">grad</span><span class="o">.</span><span class="n">detach</span><span class="p">())</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_before_optimizer_step&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">gradients</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="p">:</span>
                     <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">:</span>
@@ -679,16 +815,51 @@
                 <span class="n">avg_metrics</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="o">/</span> <span class="n">count</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">metric_accum</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">avg_metrics</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">terminal_progress</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">terminal_progress</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">avg_metrics</span><span class="p">)</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">video_recorder</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">video_recorder</span><span class="o">.</span><span class="n">record_step</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_step</span><span class="p">,</span> <span class="n">avg_metrics</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_batch_end&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">batch_idx</span><span class="p">,</span> <span class="n">loss</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">accumulation_steps</span><span class="p">)</span>
 
-            <span class="c1"># Memory cleanup</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">gc_collect_interval</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">empty_cache</span><span class="p">()</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">empty_cache</span><span class="p">()</span>
+                <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
 
             <span class="k">del</span> <span class="n">output</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">targets</span>
+
+        <span class="c1"># Final memory cleanup at end of epoch</span>
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">empty_cache</span><span class="p">()</span>
+        <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+
+        <span class="c1"># Handle leftover gradients from incomplete accumulation group</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_accum_step</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">accumulation_steps</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">gradient_clip</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="o">.</span><span class="n">unscale_</span><span class="p">(</span><span class="n">opt</span><span class="p">)</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">clip_grad_norm_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">gradient_clip</span><span class="p">)</span>
+            <span class="n">gradients</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">opt</span><span class="o">.</span><span class="n">param_groups</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">group</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]:</span>
+                        <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">grad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">gradients</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">grad</span><span class="o">.</span><span class="n">detach</span><span class="p">())</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_before_optimizer_step&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">gradients</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">opt</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">:</span>
+                    <span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">:</span>
+                <span class="n">opt</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_optimizer_step&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="o">/</span> <span class="n">count</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">metric_accum</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
@@ -696,6 +867,13 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val_loader</span><span class="p">,</span> <span class="s2">&quot;val&quot;</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loader</span><span class="p">:</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="n">split</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate model on a data loader.</span>
+<span class="sd">        Args:</span>
+<span class="sd">            loader: DataLoader for evaluation.</span>
+<span class="sd">            split: Name of the split (e.g., &#39;val&#39;, &#39;test&#39;).</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary of evaluation metrics.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">loader</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
@@ -703,7 +881,6 @@
         <span class="n">metric_accum</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
         <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
 
-        <span class="c1"># Reset confusion matrix accumulator if needed</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_confusion_matrix</span> <span class="ow">and</span> <span class="n">split</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">metric_calculator</span><span class="o">.</span><span class="n">reset_confusion_matrix</span><span class="p">()</span>
 
@@ -726,14 +903,19 @@
                     <span class="n">metric_accum</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+=</span> <span class="n">v</span>
                 <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
 
-                <span class="c1"># Accumulate for confusion matrix</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_confusion_matrix</span> <span class="ow">and</span> <span class="n">split</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">metric_calculator</span><span class="o">.</span><span class="n">accumulate_confusion_matrix</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
 
         <span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="o">/</span> <span class="n">count</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">metric_accum</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">execute_hook</span><span class="p">(</span><span class="s2">&quot;on_validation_end&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">metrics</span><span class="p">)</span>
 
-        <span class="c1"># Log confusion matrix to wandb</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+
+        <span class="c1"># Memory cleanup at end of validation</span>
+        <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">empty_cache</span><span class="p">()</span>
+        <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_confusion_matrix</span> <span class="ow">and</span> <span class="n">split</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_to_wandb</span><span class="p">:</span>
             <span class="n">cm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metric_calculator</span><span class="o">.</span><span class="n">compute_confusion_matrix</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">cm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -752,6 +934,8 @@
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">metrics</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">terminal_progress</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">terminal_progress</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">metrics</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">metrics</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_step_schedulers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">interval</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
@@ -775,7 +959,6 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">log_all_metrics</span><span class="p">:</span>
             <span class="n">log_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Epoch </span><span class="si">{</span><span class="n">step</span><span class="si">}</span><span class="s2">: &quot;</span> <span class="o">+</span> <span class="s2">&quot; - &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">log_items</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Show only loss or accuracy related</span>
             <span class="n">filtered</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">log_items</span> <span class="k">if</span> <span class="s2">&quot;loss&quot;</span> <span class="ow">in</span> <span class="n">item</span> <span class="ow">or</span> <span class="s2">&quot;accuracy&quot;</span> <span class="ow">in</span> <span class="n">item</span><span class="p">]</span>
             <span class="n">log_msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Epoch </span><span class="si">{</span><span class="n">step</span><span class="si">}</span><span class="s2">: &quot;</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filtered</span><span class="p">)</span> <span class="k">if</span> <span class="n">filtered</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;Epoch </span><span class="si">{</span><span class="n">step</span><span class="si">}</span><span class="s2">: (no loss/acc metrics)&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">log_msg</span><span class="p">)</span>
@@ -833,6 +1016,7 @@
             <span class="s2">&quot;metrics&quot;</span><span class="p">:</span> <span class="n">metrics</span><span class="p">,</span>
             <span class="s2">&quot;best_metric&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">best_metric</span><span class="p">,</span>
             <span class="s2">&quot;checkpoint_best_metric&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_best_metric</span><span class="p">,</span>
+            <span class="s2">&quot;environment&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">environment_info</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="p">:</span>
             <span class="n">ckpt</span><span class="p">[</span><span class="s2">&quot;scaler_state_dict&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scaler</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span>
@@ -913,7 +1097,7 @@
       
     </aside>
   </div>
-</div><script src="../../../_static/documentation_options.js?v=938c9ccc"></script>
+</div><script src="../../../_static/documentation_options.js?v=8d563738"></script>
     <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../../_static/scripts/furo.js?v=46bd48cc"></script>
