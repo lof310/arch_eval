@@ -1,26 +1,27 @@
 # arch_eval
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-1.9+-ee4c2c.svg)](https://pytorch.org/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-1.12+-ee4c2c.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-lof310%2Farch__eval-blue)](https://github.com/lof310/arch_eval)
 [![Stars](https://img.shields.io/github/stars/lof310/arch_eval)](#)
-[![Downloads](https://img.shields.io/github/downloads/lof310/arch_eval/total)](https://github.com/lof310/arch_eval/releases)
 
 High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning models. It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
 
 ## Features
 
-- **Unified Training Interface**: Train single models with easy to use configuration options.
-- **Multi-Model Benchmarking**: Compare multiple Architectures sequentially or in parallel (thread/process-based).
+- **Unified Training Interface**: Train single models with easy-to-use configuration options.
+- **Multi-Model Benchmarking**: Compare multiple architectures sequentially or in parallel (thread/process-based).
 - **Distributed Training**: Built-in support for DataParallel, DistributedDataParallel (DDP), and FSDP.
 - **Advanced Mixed Precision**: AMP with float16, bfloat16, and experimental FP8 support.
 - **Gradient Checkpointing**: Reduce memory footprint for large models.
-- **Rich Visualization**: Real-time training windows, video recording of metrics, and publication‑ready plots.
-- **Logging**: Integration with Weights & Biases.
+- **Rich Visualization**: Real-time training windows, video recording of metrics, and publication-ready plots.
+- **Logging**: Integration with Weights & Biases and TensorBoard.
 - **Hyperparameter Optimization**: Grid search and random search out of the box.
 - **Extensible Plugin System**: Custom hooks and callbacks for maximum flexibility.
 - **Data Handling**: Supports PyTorch Datasets, synthetic data, torchvision datasets, Hugging Face datasets, and streaming.
+- **Transformer Support**: Seamless compatibility with Hugging Face Transformers and custom transformer architectures.
+- **Production-Ready**: Configurable timeouts, retry logic, checkpointing, and deterministic execution.
 
 ## Installation
 
@@ -76,7 +77,7 @@ config = TrainingConfig(
     dataset_params={"n_samples": n_samples, "n_features": n_features, "n_classes": n_classes},
     training_args={"num_epochs": num_epochs, "batch_size": batch_size},
     task="classification",
-    realtime=True,
+    realtime="auto",  # Options: "auto", "gui", "terminal", "none"
     save_plot=["loss", "accuracy"]
 )
 
@@ -120,7 +121,7 @@ base_config = TrainingConfig(
     dataset_params={"n_samples": 1000, "n_features": 128, "n_classes": 64},
     training_args={"num_epochs": 3},
     task="classification",
-    realtime=False  # disable live plots during search
+    realtime="none"  # disable live plots during search
 )
 
 param_grid = {
@@ -137,11 +138,33 @@ results = optimizer.run()
 
 ## Documentation
 
-Documentation is Available at [This Page](https://lof310.github.io/arch_eval)
+Full documentation is available at [https://lof310.github.io/arch_eval](https://lof310.github.io/arch_eval)
+
+The documentation includes:
+- **Quick Start Guide**: Get up and running in minutes
+- **User Guide**: Comprehensive walkthrough of all features
+- **API Reference**: Detailed documentation of all classes and functions
+- **Examples**: Complete, runnable code examples
+
+To build the documentation locally:
+
+```bash
+cd docs
+pip install -r requirements-docs.txt
+make html
+# Open docs/build/html/index.html in your browser
+```
 
 ## Contributing
 
-Contributions are welcome!
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+To contribute:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
