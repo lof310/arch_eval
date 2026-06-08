@@ -24,8 +24,7 @@ class MLP(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_size, hidden),
             nn.GELU(),
-            nn.Linear(hidden, num_classes),
-            nn.Softmax(dim=-1)
+            nn.Linear(hidden, num_classes)
         )
 
     def forward(self, x):
@@ -37,7 +36,7 @@ config = TrainingConfig(
     dataset_params={"n_samples": n_samples, "n_features": n_features, "n_classes": n_classes},
     training_args={"num_epochs": num_epochs, "batch_size": batch_size},
     task="classification",
-    realtime=True,
+    realtime="auto",  # Options: "auto", "gui", "terminal", "none"
     save_plot=["loss", "accuracy"]
 )
 
@@ -81,7 +80,7 @@ base_config = TrainingConfig(
     dataset_params={"n_samples": 1000, "n_features": 128, "n_classes": 64},
     training_args={"num_epochs": 3},
     task="classification",
-    realtime=False  # disable live plots during search
+    realtime="none"  # disable live plots during search
 )
 
 param_grid = {
@@ -94,4 +93,27 @@ optimizer = HyperparameterOptimizer(
     search_type="grid", metric="val_accuracy", mode="max"
 )
 results = optimizer.run()
+```
+
+## Using Callbacks
+
+```python
+from arch_eval import Trainer, TrainingConfig, EarlyStopping, ModelCheckpoint, TensorBoardLogger
+
+config = TrainingConfig(
+    dataset="synthetic classification",
+    dataset_params={"n_samples": 1000, "n_features": 20, "n_classes": 5},
+    training_args={"num_epochs": 50, "batch_size": 32},
+    task="classification",
+    callbacks=[
+        EarlyStopping(monitor="val_loss", patience=5),
+        ModelCheckpoint(filepath="checkpoints/model.pt", monitor="val_accuracy", save_best_only=True),
+        TensorBoardLogger(log_dir="./logs")
+    ],
+    checkpoint_dir="./checkpoints"
+)
+
+model = nn.Linear(20, 5)
+trainer = Trainer(model, config)
+history = trainer.train()
 ```
