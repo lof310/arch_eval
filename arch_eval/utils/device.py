@@ -3,7 +3,6 @@
 import functools
 from typing import Any, Callable, Dict, Optional, Union
 
-import psutil
 import torch
 
 __all__ = ["get_optimal_device", "get_device_info", "memory_summary", "auto_device"]
@@ -14,6 +13,11 @@ def get_optimal_device() -> str:
 
 
 def get_device_info() -> Dict[str, Any]:
+    # Lazy import psutil
+    from arch_eval._lazy import lazy_import
+
+    psutil = lazy_import("psutil")
+
     info = {
         "cpu_count": psutil.cpu_count(),
         "cpu_percent": psutil.cpu_percent(interval=0.1),
@@ -37,6 +41,11 @@ def get_device_info() -> Dict[str, Any]:
 
 
 def memory_summary() -> str:
+    # Lazy import psutil
+    from arch_eval._lazy import lazy_import
+
+    psutil = lazy_import("psutil")
+
     lines = []
     mem = psutil.virtual_memory()
     lines.append(f"CPU Memory: {mem.used / 2**30:.2f}GB / {mem.total / 2**30:.2f}GB ({mem.percent}%)")

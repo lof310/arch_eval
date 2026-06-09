@@ -11,15 +11,27 @@ from arch_eval.core.exceptions import ConfigurationError, DistributedError
 
 
 def init_distributed(
-    backend: str = "nccl",
-    world_size: int = 1,
-    rank: int = 0,
-    master_addr: str = "127.0.0.1",
-    master_port: str = "29500",
+    config,
 ):
     """Initialize the distributed process group."""
+    from arch_eval.core.config import DistributedBackend
+
+    backend = "nccl"  # default
+    if config.distributed_backend == DistributedBackend.DISTRIBUTED:
+        backend = "nccl" if torch.cuda.is_available() else "gloo"
+    elif config.distributed_backend == DistributedBackend.FSDP:
+        backend = "nccl"
+    elif config.distributed_backend == DistributedBackend.DATAPARALLEL:
+        backend = "gloo"
+
+    world_size = config.distributed_world_size
+    rank = config.distributed_rank
+    master_addr = config.distributed_master_addr
+    master_port = config.distributed_master_port
+
     os.environ["MASTER_ADDR"] = master_addr
     os.environ["MASTER_PORT"] = master_port
+    os.environ["LOCAL_RANK"] = str(rank)  # Set LOCAL_RANK for DDP wrapper
     if not dist.is_available():
         raise DistributedError("torch.distributed is not available.")
     if not dist.is_initialized():

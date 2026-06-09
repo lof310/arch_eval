@@ -62,7 +62,12 @@ def _serialize_callable(obj: Any) -> Any:
 
 def _deserialize_callable(rep: Any) -> Any:
     """Restore a callable from its serialized representation."""
-    if rep is None or not isinstance(rep, tuple):
+    if rep is None:
+        return rep
+    # Handle string case - should not happen for valid callables
+    if isinstance(rep, str):
+        raise ValueError(f"Cannot deserialize callable from string: {rep}")
+    if not isinstance(rep, tuple):
         return rep
     # Handle cloudpickle serialization
     if len(rep) == 2 and rep[0] == "__cloudpickle__":
@@ -386,7 +391,7 @@ class BenchmarkConfig(BaseConfig):
         }
     )
     task: Union[str, Any] = TaskType.CLASSIFICATION
-    
+
     # Training-specific fields (mirrored from TrainingConfig for benchmarking)
     mixed_precision: bool = False
     mixed_precision_dtype: MixedPrecisionDtype = MixedPrecisionDtype.FLOAT16
@@ -426,7 +431,7 @@ class BenchmarkConfig(BaseConfig):
     compile_model: bool = False
     compile_kwargs: Dict[str, Any] = field(default_factory=lambda: {"dynamic": True})
     progress_bar: str = "auto"
-    
+
     parallel: bool = False
     compare_metrics: List[str] = field(default_factory=lambda: ["accuracy", "loss"])
     max_workers: Optional[int] = None

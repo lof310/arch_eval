@@ -6,8 +6,6 @@ import random
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional
 
-import pandas as pd
-
 from arch_eval.core.config import TrainingConfig
 from arch_eval.core.trainer import Trainer
 
@@ -46,11 +44,18 @@ class HyperparameterOptimizer:
             logger.warning(f"deepcopy failed ({e}), using serialization-based copy fallback")
             try:
                 import pickle
+
                 return pickle.loads(pickle.dumps(obj))
             except Exception as e2:
                 raise RuntimeError(f"Failed to copy config: deepcopy and serialization both failed: {e2}")
 
-    def run(self) -> pd.DataFrame:
+    def run(self) -> Any:
+        """Run hyperparameter search and return results as DataFrame."""
+        # Lazy import pandas
+        from arch_eval._lazy import lazy_import
+
+        pd = lazy_import("pandas")
+
         if self.search_type == "grid":
             combinations = list(itertools.product(*self.param_grid.values()))
             keys = list(self.param_grid.keys())

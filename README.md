@@ -45,7 +45,10 @@ pip install .
 
 ```python
 import torch.nn as nn
-from arch_eval import Trainer, TrainingConfig
+from arch_eval import Trainer, TrainingConfig, discover_plugins
+
+# Initialize plugins (must be called before using plugins)
+discover_plugins()
 
 # Define a global configuration
 # Dataset

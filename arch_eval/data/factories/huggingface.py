@@ -71,6 +71,7 @@ class HuggingFaceFactory(DatasetFactory):
 
         logger.info(f"Loading HuggingFace dataset: {dataset_name} (split={split})")
         from datasets import load_dataset
+
         hf_dataset = load_dataset(dataset_name, split=split, **params)
 
         wrapper = HuggingFaceDatasetWrapper(hf_dataset, text_column, label_column)

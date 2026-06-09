@@ -11,7 +11,6 @@ from collections import defaultdict, deque
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-import psutil
 import torch
 
 logger = logging.getLogger(__name__)
@@ -94,6 +93,9 @@ class TerminalProgress:
                             self.best_metrics[name] = val
                             best = val
                     table.add_row(name, f"{val:.4f}", f"{best:.4f}")
+            from arch_eval._lazy import lazy_import
+
+            psutil = lazy_import("psutil")
             cpu = psutil.cpu_percent()
             mem = psutil.virtual_memory().percent
             gpu_mem = ""
@@ -117,18 +119,16 @@ class TerminalProgress:
             if name not in self.metrics_history:
                 self.metrics_history[name] = deque(maxlen=100)
             self.metrics_history[name].append(value)
-        # Update tqdm progress bar every step, description only at viz_interval
+        # Update tqdm progress bar every step with postfix
         if self._backend == "tqdm" and self.pbar:
             self.pbar.update(1)
-            if self.step_counter % self.config.viz_interval == 0:
-                desc_parts = [f"{k}: {v:.4f}" for k, v in list(metrics.items())[:3]]
-                self.pbar.set_postfix_str(", ".join(desc_parts))
-        elif self.step_counter % self.config.viz_interval != 0:
-            # For other backends, only update at viz_interval
-            return
+            desc_parts = [f"{k}: {v:.4f}" for k, v in list(metrics.items())[:3]]
+            self.pbar.set_postfix_str(", ".join(desc_parts))
         elif self._backend == "rich" and self.live:
+            # Update rich display every step
             self.live.update(self._make_table(metrics))
         else:
+            # Plain backend: print single line with \r
             if self.step_counter % (self.config.log_interval * 10) == 0:
                 parts = [f"{k}: {v:.4f}" for k, v in metrics.items()]
                 print(f"\rStep {self.step_counter}: " + ", ".join(parts[:5]), end="", flush=True)
@@ -222,9 +222,15 @@ class VideoRecorder:
         # Check ffmpeg availability
         self.ffmpeg_available = self._check_ffmpeg()
 
-        self.base_temp = tempfile.mkdtemp(prefix="arch_eval_video_")
+        # Defer temp directory creation until first record_step
+        self.base_temp = None
 
-        for m in metrics:
+    def _initialize_temp(self):
+        """Initialize temporary directory for frames (called on first record_step)."""
+        if self.base_temp is not None:
+            return
+        self.base_temp = tempfile.mkdtemp(prefix="arch_eval_video_")
+        for m in self.metrics:
             d = os.path.join(self.base_temp, m.replace("/", "_"))
             os.makedirs(d, exist_ok=True)
             self.frames_dir[m] = d
@@ -377,8 +383,11 @@ class RealtimeWindow:
             self.plt = plt
             self.plt.ion()
             self._setup_plots()
-            self.plt.show(block=False)
+            # Set window title and ensure initial draw
+            self.fig.canvas.manager.set_window_title("arch_eval Training Monitor")
+            self.fig.canvas.draw_idle()
             self.plt.pause(0.001)
+            self.plt.show(block=False)
         except Exception as e:
             logger.warning(f"Could not initialize realtime window: {e}")
             self.disabled = True
@@ -415,6 +424,9 @@ class RealtimeWindow:
         self.next_metric_idx = 0
 
     def _get_system_stats(self):
+        from arch_eval._lazy import lazy_import
+
+        psutil = lazy_import("psutil")
         stats = {"cpu": psutil.cpu_percent(), "memory": psutil.virtual_memory().percent}
         if torch.cuda.is_available():
             stats["gpu"] = torch.cuda.memory_allocated() / torch.cuda.max_memory_allocated() * 100
@@ -444,7 +456,9 @@ class RealtimeWindow:
         if self.disabled:
             return
         self.step_counter += 1
-        if self.step_counter % self.config.viz_interval != 0:
+        # Reduce CPU usage by plotting less frequently
+        plot_every = max(1, self.config.viz_interval // 2)
+        if self.step_counter % plot_every != 0:
             return
 
         self.system_history.append(self._get_system_stats())
@@ -483,6 +497,7 @@ class RealtimeWindow:
 
         self.fig.canvas.draw_idle()
         self.plt.pause(0.001)
+        self.fig.canvas.flush_events()
 
     def close(self):
         if self.disabled:

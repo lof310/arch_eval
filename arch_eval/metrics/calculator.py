@@ -37,7 +37,7 @@ class MetricCalculator:
         self._all_targets.clear()
         self._conf_matrix = None
 
-    def accumulate_confusion_matrix(self, outputs: Any, targets: torch.Tensor):
+    def accumulate_confusion_matrix(self, outputs: Any, targets: torch.Tensor, max_samples: int = 10000):
         """Accumulate predictions for later confusion matrix computation (classification only)."""
         if isinstance(self.task, str) and self.task == TaskType.CLASSIFICATION:
             outputs = self.output_transform(outputs)
@@ -68,6 +68,11 @@ class MetricCalculator:
                 return
 
             targ = targets.cpu().numpy()
+            # Limit memory usage by keeping only recent samples
+            if len(self._all_preds) >= max_samples:
+                half = max_samples // 2
+                self._all_preds = self._all_preds[-half:]
+                self._all_targets = self._all_targets[-half:]
             self._all_preds.extend(preds)
             self._all_targets.extend(targ)
 
@@ -134,12 +139,15 @@ class MetricCalculator:
 
     def _classification_metrics(self, out: np.ndarray, targ: np.ndarray) -> Dict[str, float]:
         if out.ndim == 2 and out.shape[1] > 1:
+            # Apply softmax to logits for proper probability computation
+            exp_out = np.exp(out - np.max(out, axis=1, keepdims=True))
+            probs = exp_out / exp_out.sum(axis=1, keepdims=True)
             preds = np.argmax(out, axis=1)
             try:
                 if out.shape[1] == 2:
-                    auc = roc_auc_score(targ, out[:, 1])
+                    auc = roc_auc_score(targ, probs[:, 1])
                 else:
-                    auc = roc_auc_score(targ, out, multi_class="ovr")
+                    auc = roc_auc_score(targ, probs, multi_class="ovr")
             except Exception as e:
                 logger.debug(f"AUC failed: {e}")
                 auc = 0.5
@@ -147,7 +155,7 @@ class MetricCalculator:
             # Only compute top-5 accuracy if we have more than 5 classes
             if out.shape[1] > 5:
                 try:
-                    top5 = top_k_accuracy_score(targ, out, k=5, labels=list(range(out.shape[1])))
+                    top5 = top_k_accuracy_score(targ, probs, k=5, labels=list(range(out.shape[1])))
                 except Exception:
                     pass
         else:

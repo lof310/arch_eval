@@ -9,10 +9,8 @@ from contextlib import AbstractContextManager
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import psutil
 import torch
 import torch.nn as nn
-import wandb
 from torch.utils.data import DataLoader
 
 from arch_eval.core.config import (DistributedBackend, MixedPrecisionDtype,
@@ -64,27 +62,33 @@ class Trainer:
             os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
         if config.distributed_backend != DistributedBackend.NONE:
-            init_distributed(
-                backend="nccl",
-                world_size=config.distributed_world_size,
-                rank=config.distributed_rank,
-                master_addr=config.distributed_master_addr,
-                master_port=config.distributed_master_port,
-            )
-            self.model = get_wrapped_model(model, config)
+            init_distributed(config)
         else:
             self.model = model
 
         self.device = torch.device(config.device)
+        # Move model to device BEFORE wrapping for distributed training
         self.model = self.model.to(self.device)
+
+        # Set matmul precision for speed on CUDA
+        if self.device.type == "cuda":
+            torch.set_float32_matmul_precision("high")
+
+        if config.distributed_backend != DistributedBackend.NONE:
+            self.model = get_wrapped_model(self.model, config)
         # Keep model in float32 when using mixed precision - let AMP handle casts
         if config.dtype != torch.float32 and not config.mixed_precision:
             self.model = self.model.to(config.dtype)
 
         if config.compile_model:
             try:
-                self.model = torch.compile(self.model, **config.compile_kwargs)
-                logger.info("Model compiled with torch.compile")
+                # Avoid duplicate compilation
+                if getattr(self.model, "_compiled", False):
+                    logger.info("Model already compiled, skipping torch.compile")
+                else:
+                    self.model = torch.compile(self.model, **config.compile_kwargs)
+                    self.model._compiled = True
+                    logger.info("Model compiled with torch.compile")
             except Exception as e:
                 logger.warning(f"torch.compile failed: {e}. Continuing without compilation.")
 
@@ -124,6 +128,8 @@ class Trainer:
             use_gui = True
         elif realtime_mode == "terminal":
             use_terminal = True
+            # For terminal mode, set viz_interval to 1 for every-step updates
+            config.viz_interval = 1
         elif realtime_mode == "auto":
             # Auto mode: try GUI first, fallback to terminal
             from arch_eval.viz.viz import _gui_available
@@ -152,8 +158,11 @@ class Trainer:
         self.video_recorder = VideoRecorder(config, config.save_video) if config.save_video else None
         self.plot_saver = None
 
-        # External loggers
+        # External loggers (lazy import wandb)
         if config.log_to_wandb:
+            from arch_eval._lazy import lazy_import
+
+            wandb = lazy_import("wandb")
             wandb.init(project=config.wandb_project, name=config.wandb_run_name, config=config.training_args)
 
         self.plugin_manager = PluginManager()
@@ -179,6 +188,9 @@ class Trainer:
         self.environment_info = self._capture_environment()
         self.logger.info(f"Environment: {self.environment_info}")
         if config.log_to_wandb:
+            from arch_eval._lazy import lazy_import
+
+            wandb = lazy_import("wandb")
             wandb.config.update(self.environment_info)
 
         self.logger.info(f"Trainer initialized on {self.device}\n{memory_summary()}")
@@ -211,6 +223,9 @@ class Trainer:
         import sys
 
         import arch_eval
+        from arch_eval._lazy import lazy_import
+
+        psutil = lazy_import("psutil")
 
         info: Dict[str, Any] = {
             "python_version": sys.version,
@@ -270,6 +285,9 @@ class Trainer:
 
     def _validate_model_with_data(self):
         """Run a forward pass on a single sample to ensure the model accepts the data."""
+        # Skip validation for IterableDataset
+        if isinstance(self.train_loader.dataset, torch.utils.data.IterableDataset):
+            return
         if self.train_loader is None or len(self.train_loader.dataset) == 0:
             self.logger.warning("No training loader – skipping model validation.")
             return
@@ -487,6 +505,9 @@ class Trainer:
             if self.terminal_progress:
                 self.terminal_progress.close()
             if self.config.log_to_wandb:
+                from arch_eval._lazy import lazy_import
+
+                wandb = lazy_import("wandb")
                 wandb.finish()
             if self.config.distributed_backend != DistributedBackend.NONE:
                 cleanup_distributed()
@@ -713,6 +734,9 @@ class Trainer:
         if self.config.log_confusion_matrix and split == "val" and self.config.log_to_wandb:
             cm = self.metric_calculator.compute_confusion_matrix()
             if cm is not None:
+                from arch_eval._lazy import lazy_import
+
+                wandb = lazy_import("wandb")
                 class_names = self.config.confusion_matrix_labels or [str(i) for i in range(cm.shape[0])]
                 wandb.log(
                     {
@@ -758,6 +782,9 @@ class Trainer:
         self.logger.info(log_msg)
 
         if self.config.log_to_wandb:
+            from arch_eval._lazy import lazy_import
+
+            wandb = lazy_import("wandb")
             wandb.log(metrics, step=step)
 
         self.plugin_manager.execute_hook("on_log", self, metrics, step)

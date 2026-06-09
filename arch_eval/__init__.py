@@ -16,7 +16,20 @@ from arch_eval.logging.logger_config import setup_logging
 from arch_eval.plugins.manager import PluginManager
 
 _plugin_manager = PluginManager()
-_plugin_manager.discover_plugins()
+
+
+def discover_plugins(plugin_paths=None):
+    """Discover and load plugins.
+
+    Args:
+        plugin_paths: Optional list of directories to scan for plugins.
+                     If None or empty, only scans built-in arch_eval.plugins.
+
+    Note:
+        Users must call this function before using plugins.
+    """
+    _plugin_manager.discover_plugins(plugin_paths)
+
 
 __all__ = [
     "Trainer",
@@ -36,4 +49,5 @@ __all__ = [
     "init_distributed",
     "cleanup_distributed",
     "HyperparameterOptimizer",
+    "discover_plugins",
 ]

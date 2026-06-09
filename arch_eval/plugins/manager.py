@@ -67,7 +67,7 @@ class PluginManager:
     def __init__(self, local_hooks: Optional[Dict[str, List[Callable]]] = None):
         self.global_plugins = {}
         self.global_hooks = {name: [] for name in self.HOOKS}
-        self.local_hooks = local_hooks or {name: [] for name in self.HOOKS}
+        self.local_hooks = {name: (local_hooks or {}).get(name, []) for name in self.HOOKS}
 
     def discover_plugins(self, plugin_paths: Optional[List[str]] = None):
         """Discover plugins from specified paths or built-in arch_eval.plugins only.

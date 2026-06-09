@@ -11,7 +11,6 @@ from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
                                 as_completed)
 from typing import Any, Dict, List
 
-import pandas as pd
 import torch.nn as nn
 
 from arch_eval.core.config import BenchmarkConfig, TrainingConfig
@@ -168,7 +167,13 @@ class Benchmark:
             if not isinstance(d["model"], nn.Module):
                 raise ValueError(f"Model {i} must be a PyTorch nn.Module")
 
-    def run(self) -> pd.DataFrame:
+    def run(self) -> Any:
+        """Run benchmark and return results as DataFrame."""
+        # Lazy import pandas
+        from arch_eval._lazy import lazy_import
+
+        pd = lazy_import("pandas")
+
         self.logger.info("Starting benchmark")
         if self.config.parallel and len(self.models) > 1:
             if self.config.use_processes:
@@ -320,7 +325,13 @@ class Benchmark:
             self.logger.error(f"Model {name} failed: {e}")
             return {"model_name": name, "error": str(e)}
 
-    def _log_results(self, df: pd.DataFrame):
+    def _log_results(self, df):
+        """Log benchmark results."""
+        # Lazy import pandas for pd.notna
+        from arch_eval._lazy import lazy_import
+
+        pd = lazy_import("pandas")
+
         self.logger.info("Benchmark Results:")
         for _, row in df.iterrows():
             parts = [f"{col}: {row[col]:.4f}" for col in df.columns if col != "model_name" and pd.notna(row[col])]
