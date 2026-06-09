@@ -23,6 +23,11 @@ def init_distributed(
     if not dist.is_available():
         raise DistributedError("torch.distributed is not available.")
     if not dist.is_initialized():
+        # Allow CPU-based distributed training with Gloo backend
+        if backend == "gloo" or (not torch.cuda.is_available() and backend != "nccl"):
+            pass  # Gloo works on CPU
+        elif backend == "nccl" and not torch.cuda.is_available():
+            raise DistributedError("NCCL backend requires CUDA")
         dist.init_process_group(backend=backend, world_size=world_size, rank=rank)
 
 
@@ -39,7 +44,9 @@ def get_wrapped_model(model, config):
     elif config.distributed_backend == DistributedBackend.DISTRIBUTED:
         from torch.nn.parallel import DistributedDataParallel
 
-        return DistributedDataParallel(model, device_ids=[config.distributed_rank])
+        # Use local_rank for device ID in multi-GPU per process scenarios
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+        return DistributedDataParallel(model, device_ids=[local_rank])
     elif config.distributed_backend == DistributedBackend.FSDP:
         try:
             from torch.distributed.fsdp import FullyShardedDataParallel as FSDP

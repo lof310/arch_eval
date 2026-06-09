@@ -64,6 +64,14 @@ class Callback:
 
     def register_hooks(self, plugin_manager):
         """Register all implemented methods as local hooks."""
+        # Default method names that should not be registered
+        default_methods = {
+            "before_training", "after_training", "on_train_start", "on_train_end",
+            "on_epoch_start", "on_epoch_end", "on_batch_start", "on_batch_end",
+            "on_validation_start", "on_validation_end", "on_backward",
+            "on_before_optimizer_step", "on_optimizer_step", "on_log",
+            "on_checkpoint", "on_exception"
+        }
         hook_map = {
             "before_training": self.before_training,
             "after_training": self.after_training,
@@ -83,8 +91,21 @@ class Callback:
             "on_exception": self.on_exception,
         }
         for name, method in hook_map.items():
-            if method.__func__ is not getattr(Callback, name):
-                plugin_manager.register_local_hook(name, method)
+            # Check if the method has been overridden by comparing to the base class
+            if name not in default_methods or not hasattr(method, '__func__') or method.__func__ is not getattr(Callback, name, None):
+                # Only register if it's actually overridden
+                if name in default_methods:
+                    base_method = getattr(Callback, name)
+                    # Compare method implementations - check if user provided custom implementation
+                    try:
+                        # Safe comparison: check if method code differs from base
+                        if method.__code__ is not base_method.__code__:
+                            plugin_manager.register_local_hook(name, method)
+                    except AttributeError:
+                        # Fallback for wrapped methods
+                        plugin_manager.register_local_hook(name, method)
+                else:
+                    plugin_manager.register_local_hook(name, method)
 
 
 class EarlyStopping(Callback):
@@ -145,6 +166,9 @@ class ModelCheckpoint(Callback):
         for k, v in sorted(safe_metrics.items()):
             suffix_parts.append(f"{k}={v}")
         suffix = "_".join(suffix_parts)[:100]  # Limit length
+        # Replace any unsafe characters with underscore
+        import re
+        suffix = re.sub(r'[^\w\-.]', '_', suffix)
         # Use epoch as base with optional metric suffix
         base_path = self.filepath.format(epoch=epoch) if "{epoch}" in self.filepath else self.filepath
         if suffix:

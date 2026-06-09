@@ -45,10 +45,8 @@ class HyperparameterOptimizer:
         except Exception as e:
             logger.warning(f"deepcopy failed ({e}), using serialization-based copy fallback")
             try:
-                state = obj.__getstate__()
-                new_obj = obj.__class__.__new__(obj.__class__)
-                new_obj.__setstate__(state)
-                return new_obj
+                import pickle
+                return pickle.loads(pickle.dumps(obj))
             except Exception as e2:
                 raise RuntimeError(f"Failed to copy config: deepcopy and serialization both failed: {e2}")
 
@@ -78,7 +76,12 @@ class HyperparameterOptimizer:
             self.results.append({**params, self.metric: final_metric})
 
         df = pd.DataFrame(self.results)
-        best_idx = df[self.metric].idxmin() if self.mode == "min" else df[self.metric].idxmax()
-        best = df.loc[best_idx]
+        # Filter out rows where metric is None (failed trials)
+        valid_df = df[df[self.metric].notna()]
+        if len(valid_df) == 0:
+            logger.warning("All trials failed to produce a valid metric")
+            return df
+        best_idx = valid_df[self.metric].idxmin() if self.mode == "min" else valid_df[self.metric].idxmax()
+        best = valid_df.loc[best_idx]
         print(f"Best {self.metric}: {best[self.metric]} with params: {best.drop(self.metric).to_dict()}")
         return df

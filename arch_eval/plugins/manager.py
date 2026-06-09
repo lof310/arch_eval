@@ -75,6 +75,7 @@ class PluginManager:
             plugin_paths: List of directories to scan for plugins. If empty or None,
                 only scans the built-in arch_eval.plugins subpackage.
         """
+        original_path = sys.path.copy()  # Save original sys.path
         if plugin_paths:
             for p in plugin_paths:
                 if p not in sys.path:
@@ -107,6 +108,8 @@ class PluginManager:
                 self._load_plugin_from_module(module)
             except Exception as e:
                 logger.warning(f"Failed to load plugin {name}: {e}")
+        # Restore original sys.path to avoid import conflicts
+        sys.path[:] = original_path
         logger.info(f"Discovered {len(self.global_plugins)} global plugins")
 
     def _load_plugin_from_module(self, module):
