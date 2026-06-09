@@ -386,6 +386,47 @@ class BenchmarkConfig(BaseConfig):
         }
     )
     task: Union[str, Any] = TaskType.CLASSIFICATION
+    
+    # Training-specific fields (mirrored from TrainingConfig for benchmarking)
+    mixed_precision: bool = False
+    mixed_precision_dtype: MixedPrecisionDtype = MixedPrecisionDtype.FLOAT16
+    gradient_clip: Optional[float] = None
+    checkpoint_dir: Optional[str] = None
+    optimizers: List[Dict[str, Any]] = field(default_factory=list)
+    schedulers: List[Dict[str, Any]] = field(default_factory=list)
+    callbacks: List[Any] = field(default_factory=list)
+    loss_function: Optional[Callable] = None
+    model_output_transform: Optional[Callable] = None
+    gradient_accumulation_steps: int = 1
+    early_stopping_patience: Optional[int] = None
+    early_stopping_metric: str = "val_loss"
+    early_stopping_mode: str = "min"
+    grad_scaler: bool = True
+    save_best_only: bool = True
+    save_frequency: int = 1
+    checkpoint_metric: str = "val_loss"
+    scheduler_interval: str = "epoch"
+    eval_on_test: bool = False
+    log_all_metrics: bool = False
+    input_shape: Optional[tuple] = None
+    loss_fn_extractor: Optional[Callable] = None
+    loss_mode: str = "auto"
+    distributed_backend: DistributedBackend = DistributedBackend.NONE
+    distributed_world_size: int = 1
+    distributed_rank: int = 0
+    distributed_master_addr: str = "127.0.0.1"
+    distributed_master_port: str = "29500"
+    gradient_checkpointing: bool = False
+    gradient_checkpointing_modules: Optional[List[str]] = None
+    profiler: Optional[Dict[str, Any]] = None
+    gc_collect_interval: int = 50
+    log_confusion_matrix: bool = False
+    confusion_matrix_labels: Optional[List[str]] = None
+    debug: bool = False
+    compile_model: bool = False
+    compile_kwargs: Dict[str, Any] = field(default_factory=lambda: {"dynamic": True})
+    progress_bar: str = "auto"
+    
     parallel: bool = False
     compare_metrics: List[str] = field(default_factory=lambda: ["accuracy", "loss"])
     max_workers: Optional[int] = None

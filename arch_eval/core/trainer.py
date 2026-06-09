@@ -77,7 +77,8 @@ class Trainer:
 
         self.device = torch.device(config.device)
         self.model = self.model.to(self.device)
-        if config.dtype != torch.float32:
+        # Keep model in float32 when using mixed precision - let AMP handle casts
+        if config.dtype != torch.float32 and not config.mixed_precision:
             self.model = self.model.to(config.dtype)
 
         if config.compile_model:
@@ -166,6 +167,7 @@ class Trainer:
         self.patience_counter = 0
         self.history = []
         self.stop_training = False
+        self.checkpoint_best_metric = None  # Tracks best metric for checkpointing
 
         if config.checkpoint_dir:
             os.makedirs(config.checkpoint_dir, exist_ok=True)
@@ -194,7 +196,12 @@ class Trainer:
         elif self.config.mixed_precision_dtype == MixedPrecisionDtype.BFLOAT16:
             return torch.bfloat16
         elif self.config.mixed_precision_dtype == MixedPrecisionDtype.FP8:
-            return torch.float8_e4m3fn if hasattr(torch, "float8_e4m3fn") else torch.float16
+            # FP8 requires PyTorch >= 2.1
+            if hasattr(torch, "float8_e4m3fn") and torch.__version__ >= "2.1":
+                return torch.float8_e4m3fn
+            else:
+                logger.warning("FP8 requires PyTorch >= 2.1, falling back to float16")
+                return torch.float16
         else:
             return torch.float16
 
@@ -227,29 +234,64 @@ class Trainer:
         return info
 
     def _apply_gradient_checkpointing(self):
-        """Experimental: attempts to enable gradient checkpointing on specified modules."""
+        """Experimental: enables gradient checkpointing using torch.utils.checkpoint."""
+        from torch.utils.checkpoint import checkpoint
+
+        def custom_forward(module, *args, **kwargs):
+            return module(*args, **kwargs)
+
         if self.config.gradient_checkpointing_modules:
             for name in self.config.gradient_checkpointing_modules:
                 module = dict(self.model.named_modules()).get(name)
-                if module:
-                    module._gradient_checkpointing = True
+                if module and hasattr(module, "forward"):
+                    original_forward = module.forward
+
+                    def make_checkpointed_forward(orig_fn, mod):
+                        def checkpointed_forward(*args, **kwargs):
+                            return checkpoint(lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=False, **kwargs)
+
+                        return checkpointed_forward
+
+                    module.forward = make_checkpointed_forward(original_forward, module)
         else:
+            # Apply to all modules that have a forward method
             for module in self.model.modules():
-                if hasattr(module, "_gradient_checkpointing"):
-                    module._gradient_checkpointing = True
-        self.logger.warning("Gradient checkpointing is experimental and may not work as expected.")
+                if hasattr(module, "forward") and not isinstance(module, (torch.nn.Identity,)):
+                    original_forward = module.forward
+
+                    def make_checkpointed_forward(orig_fn, mod):
+                        def checkpointed_forward(*args, **kwargs):
+                            return checkpoint(lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=False, **kwargs)
+
+                        return checkpointed_forward
+
+                    module.forward = make_checkpointed_forward(original_forward, module)
+        self.logger.info("Gradient checkpointing enabled using torch.utils.checkpoint")
 
     def _validate_model_with_data(self):
-        """Run a forward pass on a single batch to ensure the model accepts the data."""
-        if self.train_loader is None:
+        """Run a forward pass on a single sample to ensure the model accepts the data."""
+        if self.train_loader is None or len(self.train_loader.dataset) == 0:
             self.logger.warning("No training loader – skipping model validation.")
             return
         try:
-            data, targets = next(iter(self.train_loader))
+            # Use a single sample directly from the dataset to avoid OOM
+            sample = next(iter(self.train_loader.dataset))
+            if isinstance(sample, (tuple, list)) and len(sample) >= 2:
+                data, targets = sample[0], sample[1]
+            else:
+                data, targets = sample, torch.tensor(0)
+            # Handle numpy arrays
+            if isinstance(data, np.ndarray):
+                data = torch.from_numpy(data)
+            if isinstance(targets, np.ndarray):
+                targets = torch.from_numpy(targets)
             data = data.to(self.device)
-            targets = targets.to(self.device)
+            if isinstance(targets, torch.Tensor):
+                targets = targets.to(self.device)
             self.model.eval()
             with torch.no_grad():
+                if isinstance(data, torch.Tensor) and data.dim() == 1:
+                    data = data.unsqueeze(0)
                 output = self.model(data)
             self.model.train()
             self.logger.info("Model validation passed.")
@@ -515,6 +557,9 @@ class Trainer:
             else:
                 loss.backward()
 
+            # Execute on_backward hook after backward pass
+            self.plugin_manager.execute_hook("on_backward", self, loss)
+
             self.current_accum_step += 1
 
             if self.current_accum_step % self.accumulation_steps == 0:
@@ -758,6 +803,7 @@ class Trainer:
 
         ckpt = {
             "epoch": epoch,
+            "global_step": self.global_step,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dicts": [opt.state_dict() for opt in self.optimizers],
             "scheduler_state_dicts": [sch["scheduler"].state_dict() for sch in self.schedulers],
@@ -800,6 +846,7 @@ class Trainer:
         if "scaler_state_dict" in ckpt and self.scaler:
             self.scaler.load_state_dict(ckpt["scaler_state_dict"])
         self.current_epoch = ckpt.get("epoch", 0)
+        self.global_step = ckpt.get("global_step", self.global_step)
         self.best_metric = ckpt.get("best_metric", self.best_metric)
         self.checkpoint_best_metric = ckpt.get("checkpoint_best_metric", self.checkpoint_best_metric)
         self.logger.info(f"Checkpoint loaded from {path}")

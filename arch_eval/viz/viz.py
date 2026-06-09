@@ -22,7 +22,8 @@ def _gui_available() -> bool:
     try:
         import tkinter
 
-        tkinter.Tk()
+        root = tkinter.Tk()
+        root.destroy()  # Destroy the window immediately to avoid zombie processes
         return True
     except Exception:
         return False
@@ -111,19 +112,22 @@ class TerminalProgress:
         if self.disabled:
             return
         self.step_counter += 1
-        if self.step_counter % self.config.viz_interval != 0:
-            return
-        # Update history
+        # Update history regardless of viz_interval
         for name, value in metrics.items():
             if name not in self.metrics_history:
                 self.metrics_history[name] = deque(maxlen=100)
             self.metrics_history[name].append(value)
-        if self._backend == "rich" and self.live:
-            self.live.update(self._make_table(metrics))
-        elif self._backend == "tqdm" and self.pbar:
-            desc_parts = [f"{k}: {v:.4f}" for k, v in list(metrics.items())[:3]]
-            self.pbar.set_postfix_str(", ".join(desc_parts))
+        # Update tqdm progress bar every step, description only at viz_interval
+        if self._backend == "tqdm" and self.pbar:
             self.pbar.update(1)
+            if self.step_counter % self.config.viz_interval == 0:
+                desc_parts = [f"{k}: {v:.4f}" for k, v in list(metrics.items())[:3]]
+                self.pbar.set_postfix_str(", ".join(desc_parts))
+        elif self.step_counter % self.config.viz_interval != 0:
+            # For other backends, only update at viz_interval
+            return
+        elif self._backend == "rich" and self.live:
+            self.live.update(self._make_table(metrics))
         else:
             if self.step_counter % (self.config.log_interval * 10) == 0:
                 parts = [f"{k}: {v:.4f}" for k, v in metrics.items()]

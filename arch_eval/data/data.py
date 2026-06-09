@@ -748,7 +748,39 @@ class DatasetHandler:
         train_len = int(0.9 * total)
         val_len = int(0.05 * total)
         test_len = total - train_len - val_len
-        train_ds, val_ds, test_ds = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])
+        
+        # Check if we have labels for stratified splitting (classification tasks)
+        try:
+            # Try to get labels from dataset for stratification
+            first_item = dataset[0]
+            if isinstance(first_item, (tuple, list)) and len(first_item) >= 2:
+                labels = [dataset[i][1] for i in range(len(dataset))]
+                # Use stratified split if labels are available
+                from sklearn.model_selection import StratifiedShuffleSplit
+                
+                sss = StratifiedShuffleSplit(n_splits=1, test_size=val_len + test_len, random_state=self.config.seed if hasattr(self.config, 'seed') else 42)
+                train_idx, temp_idx = next(iter(sss.split(np.arange(len(dataset)), labels)))
+                
+                # Get labels for remaining samples
+                temp_labels = [labels[i] for i in temp_idx]
+                # Split temp into val and test with stratification
+                test_split_ratio = test_len / (val_len + test_len) if (val_len + test_len) > 0 else 0.5
+                sss2 = StratifiedShuffleSplit(n_splits=1, test_size=test_split_ratio, random_state=self.config.seed if hasattr(self.config, 'seed') else 42)
+                val_idx_rel, test_idx_rel = next(iter(sss2.split(np.arange(len(temp_idx)), temp_labels)))
+                val_idx = [temp_idx[i] for i in val_idx_rel]
+                test_idx = [temp_idx[i] for i in test_idx_rel]
+                
+                train_ds = torch.utils.data.Subset(dataset, train_idx)
+                val_ds = torch.utils.data.Subset(dataset, val_idx)
+                test_ds = torch.utils.data.Subset(dataset, test_idx)
+                self.logger.info("Using stratified split for classification dataset")
+            else:
+                # No labels available, use random split
+                train_ds, val_ds, test_ds = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])
+        except Exception:
+            # Fallback to random split if stratification fails
+            train_ds, val_ds, test_ds = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])
+        
         return (
             self._build_loader(train_ds, batch_size, shuffle=True, dl_params=dl_params),
             self._build_loader(val_ds, batch_size, shuffle=False, dl_params=dl_params),
