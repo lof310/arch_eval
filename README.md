@@ -145,7 +145,7 @@ Full documentation is available at [https://lof310.github.io/arch_eval](https://
 
 The documentation includes:
 - **Quick Start Guide**: Get up and running in minutes
-- **User Guide**: Comprehensive walkthrough of all features
+- **User Guide**: Walkthrough of all features
 - **API Reference**: Detailed documentation of all classes and functions
 - **Examples**: Complete, runnable code examples
 
@@ -155,7 +155,11 @@ To build the documentation locally:
 cd docs
 pip install -r requirements-docs.txt
 make html
+
 # Open docs/build/html/index.html in your browser
+# you can use
+cd docs/build/html
+python -m http.server
 ```
 
 ## Contributing
