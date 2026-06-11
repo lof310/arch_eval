@@ -17,6 +17,7 @@ This page provides several complete, working examples demonstrating the main fea
 
 ---
 
+(basic-training-with-mnist)=
 ## Basic Training with MNIST
 
 Train a simple CNN on the MNIST digit classification dataset using torchvision data. This example demonstrates:
@@ -88,6 +89,7 @@ print(f"Final validation accuracy: {history['val_accuracy'][-1]:.4f}")
 
 ---
 
+(benchmarking-two-mlp-variants)=
 ## Benchmarking Two MLP Variants
 
 Compare a small and a large Multi-Layer Perceptron (MLP) on synthetic classification data.
@@ -137,6 +139,7 @@ print(f"\nBest model: {results.loc[results['accuracy'].idxmax()]['name']}")
 
 ---
 
+(hyperparameter-search-with-random-search)=
 ## Hyperparameter Search with Random Search
 
 Optimize learning rate and hidden size for a regression model.
@@ -195,6 +198,7 @@ print(results.loc[results["val_mse"].idxmin()])
 
 ---
 
+(using-callbacks--early-stopping-and-checkpointing)=
 ## Using Callbacks – Early Stopping and Checkpointing
 
 Train a model with early stopping and model checkpointing.
@@ -242,6 +246,7 @@ history = trainer.train()
 
 ---
 
+(custom-dataset-from-numpy-arrays)=
 ## Custom Dataset from NumPy Arrays
 
 Use your own data stored as NumPy arrays.
@@ -289,6 +294,7 @@ dataset = "cifar10"
 
 ---
 
+(distributed-training-with-ddp)=
 ## Distributed Training with DDP
 
 Launch script using `torchrun` for distributed training.
@@ -345,6 +351,7 @@ torchrun --nproc_per_node=2 train_ddp.py
 
 ---
 
+(profiling-and-video-recording)=
 ## Profiling and Video Recording
 
 Enable profiling and record training videos.
@@ -381,6 +388,7 @@ The profiler generates trace files viewable in Chrome at `chrome://tracing`.
 
 ---
 
+(using-a-huggingface-dataset)=
 ## Using a HuggingFace Dataset
 
 Load the IMDB dataset and train a text classifier.
@@ -433,6 +441,7 @@ For real applications:
 
 ---
 
+(custom-callback--logging-to-file)=
 ## Custom Callback – Logging to File
 
 Create a callback that writes metrics to CSV.
@@ -485,6 +494,7 @@ Available methods to override:
 
 ---
 
+(using-the-plugin-system)=
 ## Using the Plugin System
 
 Plugins extend arch_eval functionality globally.

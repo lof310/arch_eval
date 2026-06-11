@@ -454,6 +454,7 @@ class DatasetHandler:
 
     def register_factory(self, factory, priority: int = 0):
         """Register a custom factory.
+        
         Args:
             factory: A DatasetFactory instance.
             priority: If > 0, insert at beginning; otherwise append.
@@ -466,6 +467,7 @@ class DatasetHandler:
 
     def prepare_loaders(self) -> Tuple[DataLoader, Optional[DataLoader], Optional[DataLoader]]:
         """Prepare train/val/test DataLoaders using factory pattern.
+        
         Returns:
             Tuple of (train_loader, val_loader, test_loader).
         """
