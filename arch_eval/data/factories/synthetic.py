@@ -4,10 +4,18 @@ import logging
 from typing import Any, Dict, Optional, Tuple
 
 import torch
-from sklearn.datasets import (make_blobs, make_circles, make_classification,
-                              make_friedman1, make_friedman2, make_friedman3,
-                              make_moons, make_multilabel_classification,
-                              make_regression, make_sparse_uncorrelated)
+from sklearn.datasets import (
+    make_blobs,
+    make_circles,
+    make_classification,
+    make_friedman1,
+    make_friedman2,
+    make_friedman3,
+    make_moons,
+    make_multilabel_classification,
+    make_regression,
+    make_sparse_uncorrelated,
+)
 from torch.utils.data import Dataset
 
 from arch_eval.data.factories.base import DatasetFactory

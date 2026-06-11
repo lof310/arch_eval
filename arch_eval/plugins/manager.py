@@ -71,7 +71,7 @@ class PluginManager:
 
     def discover_plugins(self, plugin_paths: Optional[List[str]] = None):
         """Discover plugins from specified paths or built-in arch_eval.plugins only.
-        
+
         Args:
             plugin_paths: List of directories to scan for plugins. If empty or None,
                 only scans the built-in arch_eval.plugins subpackage.

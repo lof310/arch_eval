@@ -13,19 +13,15 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from arch_eval.core.config import (DistributedBackend, MixedPrecisionDtype,
-                                   TrainingConfig)
-from arch_eval.core.exceptions import (ConfigurationError, DistributedError,
-                                       ModelError, StopTraining)
+from arch_eval.core.config import DistributedBackend, MixedPrecisionDtype, TrainingConfig
+from arch_eval.core.exceptions import ConfigurationError, DistributedError, ModelError, StopTraining
 from arch_eval.data.data import DatasetHandler
-from arch_eval.distributed import (cleanup_distributed, get_wrapped_model,
-                                   init_distributed)
+from arch_eval.distributed import cleanup_distributed, get_wrapped_model, init_distributed
 from arch_eval.logging.logger_config import LoggerAdapter
 from arch_eval.metrics.calculator import MetricCalculator
 from arch_eval.plugins.manager import PluginManager
 from arch_eval.utils.device import memory_summary
-from arch_eval.viz.viz import (PlotSaver, RealtimeWindow, TerminalProgress,
-                               VideoRecorder)
+from arch_eval.viz.viz import PlotSaver, RealtimeWindow, TerminalProgress, VideoRecorder
 
 logger = logging.getLogger(__name__)
 

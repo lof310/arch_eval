@@ -7,8 +7,7 @@ import multiprocessing as mp
 import os
 import pickle
 import warnings
-from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
-                                as_completed)
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List
 
 import torch.nn as nn
