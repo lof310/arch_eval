@@ -13,15 +13,19 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from arch_eval.core.config import DistributedBackend, MixedPrecisionDtype, TrainingConfig
-from arch_eval.core.exceptions import ConfigurationError, DistributedError, ModelError, StopTraining
+from arch_eval.core.config import (DistributedBackend, MixedPrecisionDtype,
+                                   TrainingConfig)
+from arch_eval.core.exceptions import (ConfigurationError, DistributedError,
+                                       ModelError, StopTraining)
 from arch_eval.data.data import DatasetHandler
-from arch_eval.distributed import cleanup_distributed, get_wrapped_model, init_distributed
+from arch_eval.distributed import (cleanup_distributed, get_wrapped_model,
+                                   init_distributed)
 from arch_eval.logging.logger_config import LoggerAdapter
 from arch_eval.metrics.calculator import MetricCalculator
 from arch_eval.plugins.manager import PluginManager
 from arch_eval.utils.device import memory_summary
-from arch_eval.viz.viz import PlotSaver, RealtimeWindow, TerminalProgress, VideoRecorder
+from arch_eval.viz.viz import (PlotSaver, RealtimeWindow, TerminalProgress,
+                               VideoRecorder)
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +154,7 @@ class Trainer:
                 self.terminal_progress = TerminalProgress(config, metric_names=config.viz_metrics)
                 # Compute total steps for progress bar (None for iterable datasets)
                 from torch.utils.data import IterableDataset
+
                 if isinstance(self.train_loader.dataset, IterableDataset):
                     total_steps = None
                 else:
@@ -253,17 +258,16 @@ class Trainer:
 
     def _apply_gradient_checkpointing(self):
         """Experimental: enables gradient checkpointing using torch.utils.checkpoint.
-        
+
         Note: This method monkey-patches module.forward methods. For production use,
         consider using checkpoint_sequential or integrating checkpointing directly
         in your model definition.
         """
-        from torch.utils.checkpoint import checkpoint
-        
         # Check PyTorch version for use_reentrant parameter support
         import torch
         from packaging import version
-        
+        from torch.utils.checkpoint import checkpoint
+
         if version.parse(torch.__version__) < version.parse("1.11.0"):
             self.logger.warning(
                 "Gradient checkpointing with use_reentrant=False requires PyTorch >= 1.11.0. "
@@ -281,7 +285,9 @@ class Trainer:
 
                     def make_checkpointed_forward(orig_fn, mod):
                         def checkpointed_forward(*args, **kwargs):
-                            return checkpoint(lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=use_reentrant, **kwargs)
+                            return checkpoint(
+                                lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=use_reentrant, **kwargs
+                            )
 
                         return checkpointed_forward
 
@@ -294,7 +300,9 @@ class Trainer:
 
                     def make_checkpointed_forward(orig_fn, mod):
                         def checkpointed_forward(*args, **kwargs):
-                            return checkpoint(lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=use_reentrant, **kwargs)
+                            return checkpoint(
+                                lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=use_reentrant, **kwargs
+                            )
 
                         return checkpointed_forward
 

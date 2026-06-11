@@ -5,19 +5,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from sklearn.datasets import (
-    make_blobs,
-    make_circles,
-    make_classification,
-    make_friedman1,
-    make_friedman2,
-    make_friedman3,
-    make_moons,
-    make_multilabel_classification,
-    make_regression,
-    make_sparse_uncorrelated,
-)
-from torch.utils.data import DataLoader, Dataset, IterableDataset, TensorDataset
+from sklearn.datasets import (make_blobs, make_circles, make_classification,
+                              make_friedman1, make_friedman2, make_friedman3,
+                              make_moons, make_multilabel_classification,
+                              make_regression, make_sparse_uncorrelated)
+from torch.utils.data import (DataLoader, Dataset, IterableDataset,
+                              TensorDataset)
 
 from arch_eval.core.exceptions import DatasetFormatError
 
@@ -444,14 +437,10 @@ class DatasetHandler:
         self.apply_transforms = apply_transforms
         self.debug = debug
         # Initialize factories in priority order
-        from arch_eval.data.factories import (
-            DictFactory,
-            HuggingFaceFactory,
-            IterableFactory,
-            SyntheticFactory,
-            TensorFactory,
-            TorchvisionFactory,
-        )
+        from arch_eval.data.factories import (DictFactory, HuggingFaceFactory,
+                                              IterableFactory,
+                                              SyntheticFactory, TensorFactory,
+                                              TorchvisionFactory)
 
         self.factories = [
             DictFactory(),

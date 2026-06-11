@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class ProgressBackend(Enum):
     """Enum for terminal progress backends."""
+
     PLAIN = "plain"
     RICH = "rich"
     TQDM = "tqdm"
@@ -169,6 +170,7 @@ class PlotSaver:
         # Lazy import seaborn with fallback to raw matplotlib
         try:
             import seaborn as sns
+
             use_seaborn = True
         except ImportError:
             logger.warning("seaborn not installed, using raw matplotlib for plots")

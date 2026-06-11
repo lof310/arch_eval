@@ -164,7 +164,7 @@ class ModelCheckpoint(Callback):
 
     def _sanitize_filepath(self, epoch, metrics):
         """Sanitize filepath by using only epoch and sanitized metric values.
-        
+
         Note: Only {epoch} placeholder is officially supported in filepath.
         Other format specifiers like {val_loss:.2f} are not supported and may cause errors.
         """

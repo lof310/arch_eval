@@ -3,16 +3,11 @@
 __version__ = "1.0.0"
 
 from arch_eval.core.benchmark import Benchmark
-from arch_eval.core.callbacks import (
-    Callback,
-    EarlyStopping,
-    GradientModifierCallback,
-    LRSchedulerLogger,
-    ModelCheckpoint,
-    SlopeEarlyStopping,
-    TensorBoardLogger,
-    TextGeneratorCallback,
-)
+from arch_eval.core.callbacks import (Callback, EarlyStopping,
+                                      GradientModifierCallback,
+                                      LRSchedulerLogger, ModelCheckpoint,
+                                      SlopeEarlyStopping, TensorBoardLogger,
+                                      TextGeneratorCallback)
 from arch_eval.core.config import BenchmarkConfig, TrainingConfig
 from arch_eval.core.trainer import Trainer
 from arch_eval.distributed import cleanup_distributed, init_distributed
