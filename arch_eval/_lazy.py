@@ -1,4 +1,8 @@
-"""Lazy import utilities to reduce import time."""
+"""Lazy import utilities to reduce import time.
+
+This module provides lazy loading functionality for optional dependencies,
+caching imported modules to avoid repeated import overhead.
+"""
 
 _cache = {}
 

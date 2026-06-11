@@ -75,9 +75,13 @@ class HyperparameterOptimizer:
                     setattr(config, k, v)
 
             model = self.model_fn()
-            trainer = Trainer(model, config)
-            history = trainer.train()
-            final_metric = history.get(self.metric, [None])[-1]
+            try:
+                trainer = Trainer(model, config)
+                history = trainer.train()
+                final_metric = history.get(self.metric, [None])[-1]
+            except Exception as e:
+                logger.error(f"Trial {i} failed with params {params}: {e}")
+                final_metric = None
             self.results.append({**params, self.metric: final_metric})
 
         df = pd.DataFrame(self.results)

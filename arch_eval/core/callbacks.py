@@ -163,7 +163,11 @@ class ModelCheckpoint(Callback):
         self.best = float("inf") if mode == "min" else -float("inf")
 
     def _sanitize_filepath(self, epoch, metrics):
-        """Sanitize filepath by using only epoch and sanitized metric values."""
+        """Sanitize filepath by using only epoch and sanitized metric values.
+        
+        Note: Only {epoch} placeholder is officially supported in filepath.
+        Other format specifiers like {val_loss:.2f} are not supported and may cause errors.
+        """
         # Filter out keys that contain path separators or colons
         safe_metrics = {}
         for k, v in metrics.items():
@@ -186,7 +190,15 @@ class ModelCheckpoint(Callback):
 
         suffix = re.sub(r"[^\w\-.]", "_", suffix)
         # Use epoch as base with optional metric suffix
-        base_path = self.filepath.format(epoch=epoch) if "{epoch}" in self.filepath else self.filepath
+        try:
+            base_path = self.filepath.format(epoch=epoch) if "{epoch}" in self.filepath else self.filepath
+        except KeyError as e:
+            # Handle case where filepath contains unsupported format keys
+            self.logger.warning(
+                f"Unsupported format key {e} in checkpoint filepath '{self.filepath}'. "
+                "Only {epoch} is supported. Using raw filepath."
+            )
+            base_path = self.filepath
         if suffix:
             # Insert suffix before extension
             if "." in base_path:
@@ -290,7 +302,7 @@ class TextGeneratorCallback(Callback):
         if hasattr(model, "module"):
             model = model.module  # Unwrap DDP/FSDP
         if not hasattr(model, "generate"):
-            trainer.logger.info("Model does not have generate method, skipping text generation")
+            trainer.logger.debug("Model does not have generate method, skipping text generation")
             return
         try:
             import torch
@@ -305,6 +317,10 @@ class TextGeneratorCallback(Callback):
                 trainer.logger.warning("No tokenizer available, using dummy tokens")
                 input_ids = torch.randint(0, 1000, (1, 10)).to(trainer.device)
                 attention_mask = None
+            # Set pad_token_id if not available
+            pad_token_id = getattr(tokenizer, "pad_token_id", None) if tokenizer else None
+            if pad_token_id is None and tokenizer is not None:
+                pad_token_id = getattr(tokenizer, "eos_token_id", None)
             # Generate
             with torch.no_grad():
                 outputs = model.generate(
@@ -313,7 +329,7 @@ class TextGeneratorCallback(Callback):
                     do_sample=True,
                     temperature=0.7,
                     attention_mask=attention_mask,
-                    pad_token_id=getattr(tokenizer, "pad_token_id", None) if tokenizer else None,
+                    pad_token_id=pad_token_id,
                 )
             # Decode output
             if tokenizer is not None:
@@ -322,7 +338,7 @@ class TextGeneratorCallback(Callback):
                 generated_text = f"[Generated tokens: {outputs.shape}] (no tokenizer for decoding)"
             # Log result
             log_msg = f"\n{'='*50}\nPrompt: {prompt}\nGenerated: {generated_text}\n{'='*50}"
-            trainer.logger.info(log_msg)
+            trainer.logger.debug(log_msg)
             if trainer.config.log_to_wandb:
                 import wandb
 

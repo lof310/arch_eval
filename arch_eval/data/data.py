@@ -461,7 +461,7 @@ class DatasetHandler:
             TensorFactory(),
             IterableFactory(),
         ]
-        logger.info(f"DatasetHandler initialized with {len(self.factories)} factories")
+        logger.debug(f"DatasetHandler initialized with {len(self.factories)} factories")
 
     def register_factory(self, factory, priority: int = 0):
         """Register a custom factory.
@@ -473,7 +473,7 @@ class DatasetHandler:
             self.factories.insert(0, factory)
         else:
             self.factories.append(factory)
-        logger.info(f"Registered custom factory: {type(factory).__name__}")
+        logger.debug(f"Registered custom factory: {type(factory).__name__}")
 
     def prepare_loaders(self) -> Tuple[DataLoader, Optional[DataLoader], Optional[DataLoader]]:
         """Prepare train/val/test DataLoaders using factory pattern.
@@ -492,7 +492,7 @@ class DatasetHandler:
             if factory.can_handle(dataset, self.config):
                 try:
                     created_dataset, metadata = factory.create(dataset, self.config)
-                    logger.info(f"Dataset created by {type(factory).__name__}")
+                    logger.debug(f"Dataset created by {type(factory).__name__}")
                     break
                 except Exception as e:
                     logger.warning(f"{type(factory).__name__} failed: {e}. Trying next factory.")
@@ -509,7 +509,7 @@ class DatasetHandler:
                     created_dataset = create_synthetic_vision_language_dataset(params)
                 else:
                     created_dataset = create_synthetic_dataset(dataset_type, params)
-                logger.info(f"Created synthetic {dataset_type} dataset")
+                logger.debug(f"Created synthetic {dataset_type} dataset")
         if created_dataset is None:
             raise DatasetFormatError(f"No factory could handle dataset type: {type(dataset)}")
         # Debug mode: truncate to 20 samples
@@ -519,7 +519,7 @@ class DatasetHandler:
             original_len = len(created_dataset)
             debug_samples = min(20, original_len)
             created_dataset = Subset(created_dataset, range(debug_samples))
-            logger.info(f"DEBUG MODE: Truncated dataset from {original_len} to {debug_samples} samples")
+            logger.debug(f"DEBUG MODE: Truncated dataset from {original_len} to {debug_samples} samples")
         elif self.debug and isinstance(created_dataset, IterableDataset):
             import itertools
 
@@ -535,7 +535,7 @@ class DatasetHandler:
                     return self.limited_iterator
 
             created_dataset = LimitedIterableDataset(limited_iter)
-            logger.info("DEBUG MODE: Limited IterableDataset to 20 samples")
+            logger.debug("DEBUG MODE: Limited IterableDataset to 20 samples")
         # Sharding for distributed training
         shard_cfg = self.config.dataset_shard
         if shard_cfg and hasattr(created_dataset, "shard"):
@@ -752,6 +752,14 @@ class DatasetHandler:
             # Try to get labels from dataset for stratification
             first_item = dataset[0]
             if isinstance(first_item, (tuple, list)) and len(first_item) >= 2:
+                # Only materialize labels if dataset is not too large (<1M samples)
+                # For larger datasets, use random split to avoid memory issues
+                if len(dataset) > 1_000_000:
+                    logger.warning(
+                        f"Dataset has {len(dataset)} samples - skipping stratified split to save memory. "
+                        "Use random split instead."
+                    )
+                    raise MemoryError("Dataset too large for stratified split")
                 labels = [dataset[i][1] for i in range(len(dataset))]
                 # Use stratified split if labels are available
                 from sklearn.model_selection import StratifiedShuffleSplit
@@ -779,7 +787,7 @@ class DatasetHandler:
                 train_ds = torch.utils.data.Subset(dataset, train_idx)
                 val_ds = torch.utils.data.Subset(dataset, val_idx)
                 test_ds = torch.utils.data.Subset(dataset, test_idx)
-                logger.info("Using stratified split for classification dataset")
+                logger.debug("Using stratified split for classification dataset")
             else:
                 # No labels available, use random split
                 train_ds, val_ds, test_ds = torch.utils.data.random_split(dataset, [train_len, val_len, test_len])

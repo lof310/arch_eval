@@ -155,7 +155,7 @@ class Benchmark:
         self.logger = LoggerAdapter("benchmark")
         self._validate_models()
         self.results = []
-        self.logger.info(f"Benchmark initialized with {len(models)} models")
+        self.logger.debug(f"Benchmark initialized with {len(models)} models")
 
     def _validate_models(self):
         for i, d in enumerate(self.models):
@@ -247,7 +247,7 @@ class Benchmark:
 
     def _train_single(self, model_info):
         name, model = model_info["name"], model_info["model"]
-        self.logger.info(f"Training model: {name}")
+        self.logger.debug(f"Training model: {name}")
         try:
             trainer_config = TrainingConfig(
                 # Base config fields

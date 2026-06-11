@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import threading
 from collections import defaultdict, deque
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -16,12 +17,20 @@ import torch
 logger = logging.getLogger(__name__)
 
 
+class ProgressBackend(Enum):
+    """Enum for terminal progress backends."""
+    PLAIN = "plain"
+    RICH = "rich"
+    TQDM = "tqdm"
+
+
 def _gui_available() -> bool:
     """Check if a GUI display is available for matplotlib/TkAgg backend."""
     try:
         import tkinter
 
         root = tkinter.Tk()
+        root.withdraw()  # Hide the window immediately to avoid flashing
         root.destroy()  # Destroy the window immediately to avoid zombie processes
         return True
     except Exception:
@@ -39,7 +48,7 @@ class TerminalProgress:
         self.step_counter = 0
         self.disabled = False
         # Try importing rich, then tqdm, then fall back to plain print
-        self._backend = "plain"
+        self._backend = ProgressBackend.PLAIN
         try:
             from rich.console import Console
             from rich.live import Live
@@ -50,32 +59,32 @@ class TerminalProgress:
             self.Live = Live
             self.Table = Table
             self.Panel = Panel
-            self._backend = "rich"
+            self._backend = ProgressBackend.RICH
         except ImportError:
             try:
                 from tqdm import tqdm
 
                 self.tqdm = tqdm
-                self._backend = "tqdm"
+                self._backend = ProgressBackend.TQDM
             except ImportError:
-                logger.info("Neither rich nor tqdm available, using plain terminal output")
-        if self._backend == "rich":
+                logger.debug("Neither rich nor tqdm available, using plain terminal output")
+        if self._backend == ProgressBackend.RICH:
             self.console = self.Console()
             self.live = None
-        elif self._backend == "tqdm":
+        elif self._backend == ProgressBackend.TQDM:
             self.pbar = None
 
     def start(self, total_steps: Optional[int] = None):
         """Start the progress display."""
-        if self._backend == "rich":
+        if self._backend == ProgressBackend.RICH:
             self.live = self.Live(self._make_table({}), console=self.console, refresh_per_second=4)
             self.live.start()
-        elif self._backend == "tqdm":
+        elif self._backend == ProgressBackend.TQDM:
             self.pbar = self.tqdm(total=total_steps, desc="Training")
 
     def _make_table(self, metrics: Dict[str, float]) -> Any:
         """Create a table/panel with current metrics."""
-        if self._backend == "rich":
+        if self._backend == ProgressBackend.RICH:
             table = self.Table(title="Training Progress", expand=True)
             table.add_column("Metric", style="cyan")
             table.add_column("Current", style="green")
@@ -120,26 +129,26 @@ class TerminalProgress:
                 self.metrics_history[name] = deque(maxlen=100)
             self.metrics_history[name].append(value)
         # Update tqdm progress bar every step with postfix
-        if self._backend == "tqdm" and self.pbar:
+        if self._backend == ProgressBackend.TQDM and self.pbar:
             self.pbar.update(1)
             desc_parts = [f"{k}: {v:.4f}" for k, v in list(metrics.items())[:3]]
             self.pbar.set_postfix_str(", ".join(desc_parts))
-        elif self._backend == "rich" and self.live:
+        elif self._backend == ProgressBackend.RICH and self.live:
             # Update rich display every step
             self.live.update(self._make_table(metrics))
         else:
-            # Plain backend: print single line with \r
-            if self.step_counter % (self.config.log_interval * 10) == 0:
+            # Plain backend: print single line with \r every viz_interval steps
+            if self.step_counter % max(1, self.config.viz_interval) == 0:
                 parts = [f"{k}: {v:.4f}" for k, v in metrics.items()]
                 print(f"\rStep {self.step_counter}: " + ", ".join(parts[:5]), end="", flush=True)
 
     def close(self):
         """Close the progress display."""
-        if self._backend == "rich" and self.live:
+        if self._backend == ProgressBackend.RICH and self.live:
             self.live.stop()
-        elif self._backend == "tqdm" and self.pbar:
+        elif self._backend == ProgressBackend.TQDM and self.pbar:
             self.pbar.close()
-        elif self._backend == "plain":
+        elif self._backend == ProgressBackend.PLAIN:
             print()  # Newline after plain output
 
 
@@ -156,7 +165,14 @@ class PlotSaver:
 
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        import seaborn as sns
+
+        # Lazy import seaborn with fallback to raw matplotlib
+        try:
+            import seaborn as sns
+            use_seaborn = True
+        except ImportError:
+            logger.warning("seaborn not installed, using raw matplotlib for plots")
+            use_seaborn = False
 
         os.makedirs(out_dir, exist_ok=True)
         to_plot = self.config.save_plot or list(self.history.keys())
@@ -176,7 +192,10 @@ class PlotSaver:
 
             steps = range(len(data))
             plt.figure()
-            sns.lineplot(x=steps, y=data, label=metric)
+            if use_seaborn:
+                sns.lineplot(x=steps, y=data, label=metric)
+            else:
+                plt.plot(steps, data, label=metric)
 
             if len(data) > 10:
                 try:
@@ -194,7 +213,7 @@ class PlotSaver:
             base_path = os.path.join(out_dir, safe)
             plt.savefig(f"{base_path}.png", dpi=150, bbox_inches="tight")
             plt.close()
-            logger.info(f"Plot saved: {safe}.png")
+            logger.debug(f"Plot saved: {safe}.png")
 
 
 class VideoRecorder:
@@ -334,13 +353,13 @@ class VideoRecorder:
 
                 cmd.append(video)
 
-                logger.info(f"Generating video for {metric}...")
+                logger.debug(f"Generating video for {metric}...")
                 res = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 
                 if res.returncode != 0:
                     logger.error(f"FFmpeg error for {metric}: {res.stderr}")
                 else:
-                    logger.info(f"Video saved to {video}")
+                    logger.debug(f"Video saved to {video}")
 
         except Exception as e:
             logger.error(f"Error creating video: {e}")
@@ -461,6 +480,7 @@ class RealtimeWindow:
         if self.step_counter % plot_every != 0:
             return
 
+        # Only collect system stats when actually plotting
         self.system_history.append(self._get_system_stats())
 
         for name, value in metrics.items():

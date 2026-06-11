@@ -31,7 +31,10 @@ def init_distributed(
 
     os.environ["MASTER_ADDR"] = master_addr
     os.environ["MASTER_PORT"] = master_port
-    os.environ["LOCAL_RANK"] = str(rank)  # Set LOCAL_RANK for DDP wrapper
+    # Set LOCAL_RANK to local rank (rank % gpus_per_node), not global rank
+    gpus_per_node = torch.cuda.device_count() if torch.cuda.is_available() else 1
+    local_rank = rank % gpus_per_node
+    os.environ["LOCAL_RANK"] = str(local_rank)
     if not dist.is_available():
         raise DistributedError("torch.distributed is not available.")
     if not dist.is_initialized():

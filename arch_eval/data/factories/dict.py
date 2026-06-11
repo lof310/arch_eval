@@ -54,5 +54,5 @@ class DictFactory(DatasetFactory):
             "num_classes": 1,
             "input_shape": None,
         }
-        logger.info(f"Created DictDataset with {len(dataset)} samples")
+        logger.debug(f"Created DictDataset with {len(dataset)} samples")
         return dataset, metadata

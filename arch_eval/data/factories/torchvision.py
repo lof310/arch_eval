@@ -99,5 +99,5 @@ class TorchvisionFactory(DatasetFactory):
                 else (3, 32, 32) if dataset_name in ["cifar10", "cifar100"] else (3, 224, 224)
             ),
         }
-        logger.info(f"Created torchvision {dataset_name} dataset (train={train})")
+        logger.debug(f"Created torchvision {dataset_name} dataset (train={train})")
         return dataset, metadata

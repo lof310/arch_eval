@@ -110,7 +110,7 @@ class PluginManager:
                 logger.warning(f"Failed to load plugin {name}: {e}")
         # Restore original sys.path to avoid import conflicts
         sys.path[:] = original_path
-        logger.info(f"Discovered {len(self.global_plugins)} global plugins")
+        logger.debug(f"Discovered {len(self.global_plugins)} global plugins")
 
     def _load_plugin_from_module(self, module):
         plugin_name = getattr(module, "__plugin_name__", module.__name__)
@@ -147,7 +147,7 @@ class PluginManager:
                 if res is not None:
                     results.append(res)
             except StopTraining:
-                logger.info(f"Plugin {func.__name__} requested training stop")
+                logger.debug(f"Plugin {func.__name__} requested training stop")
                 raise
             except Exception as e:
                 logger.error(f"Plugin error in {hook_name} ({func.__name__}): {e}\n{traceback.format_exc()}")
