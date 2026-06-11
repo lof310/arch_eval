@@ -39,7 +39,7 @@ class TensorFactory(DatasetFactory):
                 "num_classes": len(torch.unique(y)) if y.dtype in [torch.long, torch.int] else 1,
                 "input_shape": X.shape[1:] if len(X.shape) > 1 else X.shape,
             }
-            logger.info(f"Using existing TensorDataset with {len(X)} samples")
+            logger.debug(f"Using existing TensorDataset with {len(X)} samples")
             return dataset, metadata
         if isinstance(data, (tuple, list)):
             X, y = data[0], data[1]
@@ -79,5 +79,5 @@ class TensorFactory(DatasetFactory):
             "num_classes": len(torch.unique(y)) if y.dtype in [torch.long, torch.int] else 1,
             "input_shape": X.shape[1:] if len(X.shape) > 1 else X.shape,
         }
-        logger.info(f"Created TensorDataset with {len(X)} samples")
+        logger.debug(f"Created TensorDataset with {len(X)} samples")
         return dataset, metadata

@@ -45,5 +45,5 @@ class IterableFactory(DatasetFactory):
         params = getattr(config, "dataset_params", {}) or {}
         max_items = params.get("max_items", None)
         dataset = IterableDatasetWrapper(data, max_items)
-        logger.info(f"Created IterableDataset wrapper")
+        logger.debug(f"Created IterableDataset wrapper")
         return dataset, None

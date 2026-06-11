@@ -1,62 +1,52 @@
 ```
-# Compiled Python files
+# Compiled and build artifacts
 *.pyc
 __pycache__/
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
 
 # Dependencies
 .venv/
 venv/
-env/
-pip-log.txt
-pip-selfcheck.json
+.env
+.env.local
+*.env.*
 
-# Build and distribution artifacts
+# Build and distribution
 build/
 dist/
-*.egg
 *.egg-info/
-*.so
-*.dylib
-*.dll
 
 # Testing and coverage
 .coverage
 coverage/
 htmlcov/
-.nyc_output/
 .pytest_cache/
-.hypothesis/
+.mypy_cache/
 
-# Logs
+# Logs and temp files
 *.log
+*.tmp
+*.swp
+*.swo
 
-# Environment variables
-.env
-.env.local
-*.env.*
+# Editors and IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # OS generated files
 .DS_Store
 Thumbs.db
-ehthumbs.db
-Icon?
-apidoc/
-doc_serve/
-*.swp
-*.swo
 
-# IDE specific
-.vscode/
-.idea/
-*.iml
-*.ipr
-*.iws
-nbproject/
-
-# Temporary files
-*.tmp
-*~
-.project
-.settings/
-*.sublime-workspace
+# Distribution / packaging
+*.tar.gz
+*.whl
+*.zip
 ```

@@ -80,16 +80,16 @@ class Trainer:
             try:
                 # Avoid duplicate compilation
                 if getattr(self.model, "_compiled", False):
-                    logger.info("Model already compiled, skipping torch.compile")
+                    logger.debug("Model already compiled, skipping torch.compile")
                 else:
                     self.model = torch.compile(self.model, **config.compile_kwargs)
                     self.model._compiled = True
-                    logger.info("Model compiled with torch.compile")
+                    logger.debug("Model compiled with torch.compile")
             except Exception as e:
                 logger.warning(f"torch.compile failed: {e}. Continuing without compilation.")
 
         if config.debug:
-            logger.info(f"DEBUG MODE: Overriding num_epochs=1, batch_size=2")
+            logger.debug(f"DEBUG MODE: Overriding num_epochs=1, batch_size=2")
             config.training_args["num_epochs"] = 1
             config.training_args["batch_size"] = 2
 
@@ -148,7 +148,14 @@ class Trainer:
         if use_terminal:
             try:
                 self.terminal_progress = TerminalProgress(config, metric_names=config.viz_metrics)
-                self.logger.info("Using terminal-based progress display")
+                # Compute total steps for progress bar (None for iterable datasets)
+                from torch.utils.data import IterableDataset
+                if isinstance(self.train_loader.dataset, IterableDataset):
+                    total_steps = None
+                else:
+                    total_steps = len(self.train_loader) * config.training_args.get("num_epochs", 1)
+                self.terminal_progress.start(total_steps)
+                self.logger.debug("Using terminal-based progress display")
             except Exception as e2:
                 self.logger.warning(f"Failed to initialize terminal progress: {e2}")
         self.video_recorder = VideoRecorder(config, config.save_video) if config.save_video else None
@@ -182,14 +189,14 @@ class Trainer:
 
         # Capture environment info for reproducibility
         self.environment_info = self._capture_environment()
-        self.logger.info(f"Environment: {self.environment_info}")
+        self.logger.debug(f"Environment: {self.environment_info}")
         if config.log_to_wandb:
             from arch_eval._lazy import lazy_import
 
             wandb = lazy_import("wandb")
             wandb.config.update(self.environment_info)
 
-        self.logger.info(f"Trainer initialized on {self.device}\n{memory_summary()}")
+        self.logger.debug(f"Trainer initialized on {self.device}\n{memory_summary()}")
 
     def _get_amp_dtype(self):
         if not self.use_amp:
@@ -245,11 +252,26 @@ class Trainer:
         return info
 
     def _apply_gradient_checkpointing(self):
-        """Experimental: enables gradient checkpointing using torch.utils.checkpoint."""
+        """Experimental: enables gradient checkpointing using torch.utils.checkpoint.
+        
+        Note: This method monkey-patches module.forward methods. For production use,
+        consider using checkpoint_sequential or integrating checkpointing directly
+        in your model definition.
+        """
         from torch.utils.checkpoint import checkpoint
-
-        def custom_forward(module, *args, **kwargs):
-            return module(*args, **kwargs)
+        
+        # Check PyTorch version for use_reentrant parameter support
+        import torch
+        from packaging import version
+        
+        if version.parse(torch.__version__) < version.parse("1.11.0"):
+            self.logger.warning(
+                "Gradient checkpointing with use_reentrant=False requires PyTorch >= 1.11.0. "
+                f"Current version: {torch.__version__}. Falling back to use_reentrant=True."
+            )
+            use_reentrant = True
+        else:
+            use_reentrant = False
 
         if self.config.gradient_checkpointing_modules:
             for name in self.config.gradient_checkpointing_modules:
@@ -259,7 +281,7 @@ class Trainer:
 
                     def make_checkpointed_forward(orig_fn, mod):
                         def checkpointed_forward(*args, **kwargs):
-                            return checkpoint(lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=False, **kwargs)
+                            return checkpoint(lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=use_reentrant, **kwargs)
 
                         return checkpointed_forward
 
@@ -272,12 +294,12 @@ class Trainer:
 
                     def make_checkpointed_forward(orig_fn, mod):
                         def checkpointed_forward(*args, **kwargs):
-                            return checkpoint(lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=False, **kwargs)
+                            return checkpoint(lambda *a, **kw: orig_fn(*a, **kw), *args, use_reentrant=use_reentrant, **kwargs)
 
                         return checkpointed_forward
 
                     module.forward = make_checkpointed_forward(original_forward, module)
-        self.logger.info("Gradient checkpointing enabled using torch.utils.checkpoint")
+        self.logger.debug("Gradient checkpointing enabled using torch.utils.checkpoint")
 
     def _validate_model_with_data(self):
         """Run a forward pass on a single sample to ensure the model accepts the data."""
@@ -308,7 +330,7 @@ class Trainer:
                     data = data.unsqueeze(0)
                 output = self.model(data)
             self.model.train()
-            self.logger.info("Model validation passed.")
+            self.logger.debug("Model validation passed.")
         except Exception as e:
             raise ModelError(
                 f"Model validation failed on a real batch: {e}. "

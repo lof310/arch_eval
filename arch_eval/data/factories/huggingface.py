@@ -69,7 +69,7 @@ class HuggingFaceFactory(DatasetFactory):
         text_column = params.get("text_column", "text")
         label_column = params.get("label_column", "label")
 
-        logger.info(f"Loading HuggingFace dataset: {dataset_name} (split={split})")
+        logger.debug(f"Loading HuggingFace dataset: {dataset_name} (split={split})")
         from datasets import load_dataset
 
         hf_dataset = load_dataset(dataset_name, split=split, **params)
