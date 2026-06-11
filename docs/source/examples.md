@@ -1,10 +1,29 @@
 # Usage Examples
 
-This page provides several complete examples demonstrating the main features of **arch_eval**.
+This page provides several complete, working examples demonstrating the main features of **arch_eval**. Each example is self-contained and can be run as-is (with minor modifications for your specific use case).
+
+## Table of Contents
+
+- [Basic Training with MNIST](#basic-training-with-mnist)
+- [Benchmarking Two MLP Variants](#benchmarking-two-mlp-variants)
+- [Hyperparameter Search with Random Search](#hyperparameter-search-with-random-search)
+- [Using Callbacks – Early Stopping and Checkpointing](#using-callbacks--early-stopping-and-checkpointing)
+- [Custom Dataset from NumPy Arrays](#custom-dataset-from-numpy-arrays)
+- [Distributed Training with DDP](#distributed-training-with-ddp)
+- [Profiling and Video Recording](#profiling-and-video-recording)
+- [Using a HuggingFace Dataset](#using-a-huggingface-dataset)
+- [Custom Callback – Logging to File](#custom-callback--logging-to-file)
+- [Using the Plugin System](#using-the-plugin-system)
+
+---
 
 ## Basic Training with MNIST
 
-Train a simple CNN on MNIST using torchvision data.
+Train a simple CNN on the MNIST digit classification dataset using torchvision data. This example demonstrates:
+- Loading real-world image data
+- Using transforms for normalization
+- Training with GPU acceleration (if available)
+- Saving plots and logging
 
 ```python
 import torch
@@ -13,8 +32,10 @@ import torch.nn.functional as F
 from arch_eval import Trainer, TrainingConfig
 from torchvision import transforms
 
-# ---------- Model ----------
+# ---------- Model Definition ----------
 class SimpleCNN(nn.Module):
+    """Simple Convolutional Neural Network for MNIST classification."""
+    
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
@@ -30,21 +51,18 @@ class SimpleCNN(nn.Module):
         x = F.relu(self.fc1(x))
         return self.fc2(x)
 
-# ---------- Configuration ----------
+# ---------- Data Transforms ----------
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.1307,), (0.3081,))
 ])
 
+# ---------- Configuration ----------
 config = TrainingConfig(
     dataset="mnist",
     dataset_params={"root": "./data", "split": "train", "download": True},
     transform=transform,
-    training_args={
-        "batch_size": 64,
-        "learning_rate": 0.001,
-        "num_epochs": 5,
-    },
+    training_args={"batch_size": 64, "learning_rate": 0.001, "num_epochs": 5},
     task="classification",
     device="cuda" if torch.cuda.is_available() else "cpu",
     realtime=True,
@@ -61,9 +79,18 @@ history = trainer.train()
 print(f"Final validation accuracy: {history['val_accuracy'][-1]:.4f}")
 ```
 
+### Key Points
+
+1. **Dataset Loading**: The library automatically handles downloading and loading MNIST from torchvision
+2. **Transforms**: Normalization improves training stability
+3. **Device Selection**: Automatically uses GPU if available
+4. **Visualization**: Real-time plots help monitor training progress
+
+---
+
 ## Benchmarking Two MLP Variants
 
-Compare a small and a large MLP on synthetic data.
+Compare a small and a large Multi-Layer Perceptron (MLP) on synthetic classification data.
 
 ```python
 import torch.nn as nn
@@ -88,27 +115,27 @@ models = [
 
 config = BenchmarkConfig(
     dataset="synthetic classification",
-    dataset_params={
-        "n_samples": 5000,
-        "n_features": 128,
-        "n_classes": 64,
-        "n_informative": 64,
-    },
-    training_args={
-        "batch_size": 32,
-        "learning_rate": 0.001,
-        "num_epochs": 10,
-    },
+    dataset_params={"n_samples": 5000, "n_features": 128, "n_classes": 64},
+    training_args={"batch_size": 32, "learning_rate": 0.001, "num_epochs": 10},
     compare_metrics=["accuracy", "loss"],
-    parallel=True,               # run two models concurrently
-    use_processes=False,         # use threads (safe for CPU; for GPU, keep sequential)
-    device="cpu",                # force CPU for this example
+    parallel=True,
+    device="cpu",
 )
 
 benchmark = Benchmark(models, config)
 results = benchmark.run()
+
 print(results)
+print(f"\nBest model: {results.loc[results['accuracy'].idxmax()]['name']}")
 ```
+
+### Tips for Benchmarking
+
+1. **Parallel Execution**: Use `parallel=True` for faster benchmarking
+2. **Consistent Data**: All models see the same data splits for fair comparison
+3. **Multiple Metrics**: Compare on various metrics (accuracy, loss, training time)
+
+---
 
 ## Hyperparameter Search with Random Search
 
@@ -136,17 +163,10 @@ def model_fn():
 
 base_config = TrainingConfig(
     dataset="synthetic regression",
-    dataset_params={
-        "n_samples": 2000,
-        "n_features": 20,
-        "noise": 0.1,
-    },
-    training_args={
-        "num_epochs": 5,
-        "batch_size": 32,
-    },
+    dataset_params={"n_samples": 2000, "n_features": 20, "noise": 0.1},
+    training_args={"num_epochs": 5, "batch_size": 32},
     task="regression",
-    realtime=False,   # disable plots during search
+    realtime=False,
 )
 
 param_grid = {
@@ -155,13 +175,9 @@ param_grid = {
 }
 
 optimizer = HyperparameterOptimizer(
-    model_fn,
-    base_config,
-    param_grid,
-    search_type="random",
-    n_trials=6,              # try 6 random combinations
-    metric="val_mse",
-    mode="min",
+    model_fn, base_config, param_grid,
+    search_type="random", n_trials=6,
+    metric="val_mse", mode="min"
 )
 
 results = optimizer.run()
@@ -169,13 +185,25 @@ print("Best trial:")
 print(results.loc[results["val_mse"].idxmin()])
 ```
 
+### Grid Search vs Random Search
+
+| Aspect | Grid Search | Random Search |
+|--------|-------------|---------------|
+| Coverage | Exhaustive | Sampling |
+| Efficiency | Good for small spaces | Better for large spaces |
+| Configuration | No n_trials needed | Specify n_trials |
+
+---
+
 ## Using Callbacks – Early Stopping and Checkpointing
 
 Train a model with early stopping and model checkpointing.
 
 ```python
-from arch_eval import Trainer, TrainingConfig
-from arch_eval import EarlyStopping, ModelCheckpoint
+from arch_eval import (
+    Trainer, TrainingConfig,
+    EarlyStopping, ModelCheckpoint, LRSchedulerLogger
+)
 
 config = TrainingConfig(
     dataset="synthetic classification",
@@ -189,7 +217,8 @@ config = TrainingConfig(
             monitor="val_accuracy",
             save_best_only=True,
             mode="max"
-        )
+        ),
+        LRSchedulerLogger()
     ],
     checkpoint_dir="./checkpoints",
 )
@@ -198,6 +227,20 @@ model = nn.Linear(20, 5)
 trainer = Trainer(model, config)
 history = trainer.train()
 ```
+
+### Callback Parameters Explained
+
+**EarlyStopping:**
+- `monitor`: Which metric to track
+- `patience`: How many epochs to wait before stopping
+- `mode`: "min" for losses, "max" for accuracies
+
+**ModelCheckpoint:**
+- `filepath`: Where to save (can include `{epoch}` placeholder)
+- `monitor`: Metric to track for saving decisions
+- `save_best_only`: Only save when metric improves
+
+---
 
 ## Custom Dataset from NumPy Arrays
 
@@ -209,29 +252,54 @@ import torch
 from arch_eval import Trainer, TrainingConfig
 
 # Generate random data
+np.random.seed(42)
 X = np.random.randn(1000, 50).astype(np.float32)
-y = (X.sum(axis=1) > 0).astype(np.int64)   # binary labels
+y = (X.sum(axis=1) > 0).astype(np.int64)
 
 config = TrainingConfig(
-    dataset=(X, y),          # tuple (data, targets)
+    dataset=(X, y),
     training_args={"batch_size": 64, "learning_rate": 0.001, "num_epochs": 5},
     task="classification",
 )
 
-model = torch.nn.Linear(50, 2)   # 2 classes
+model = torch.nn.Linear(50, 2)
 trainer = Trainer(model, config)
 trainer.train()
 ```
 
+### Data Format Options
+
+You can pass data in various formats:
+
+```python
+# Tuple of numpy arrays
+dataset = (X_numpy, y_numpy)
+
+# Tuple of torch tensors
+dataset = (X_tensor, y_tensor)
+
+# PyTorch Dataset instance
+from torch.utils.data import TensorDataset
+dataset = TensorDataset(torch.from_numpy(X), torch.from_numpy(y))
+
+# String identifier (built-in datasets)
+dataset = "mnist"
+dataset = "cifar10"
+```
+
+---
+
 ## Distributed Training with DDP
 
-Launch script using `torchrun`. Assume the script is `train_ddp.py`.
+Launch script using `torchrun` for distributed training.
+
+### Training Script (train_ddp.py)
 
 ```python
 # train_ddp.py
+import os
 import torch
 import torch.nn as nn
-import torch.distributed as dist
 from arch_eval import Trainer, TrainingConfig, DistributedBackend
 
 class Model(nn.Module):
@@ -242,20 +310,19 @@ class Model(nn.Module):
     def forward(self, x):
         return self.fc(x)
 
-# Get rank and world size from environment (set by torchrun)
 rank = int(os.environ["RANK"])
 world_size = int(os.environ["WORLD_SIZE"])
+local_rank = int(os.environ["LOCAL_RANK"])
 
 config = TrainingConfig(
     dataset="synthetic classification",
     dataset_params={"n_samples": 10000, "n_features": 128, "n_classes": 10},
-    training_args={"batch_size": 64, "num_epochs": 10, "learning_rate": 0.01},
+    training_args={"batch_size": 64, "num_epochs": 10},
     distributed_backend=DistributedBackend.DISTRIBUTED,
     distributed_world_size=world_size,
     distributed_rank=rank,
-    # Optional: shard dataset so each GPU sees different samples
     dataset_shard={"num_shards": world_size, "shard_id": rank},
-    device="cuda",
+    device=f"cuda:{local_rank}",
 )
 
 model = Model()
@@ -263,15 +330,24 @@ trainer = Trainer(model, config)
 trainer.train()
 ```
 
-Run with:
+### Running the Script
 
 ```bash
+# Train on 2 GPUs
 torchrun --nproc_per_node=2 train_ddp.py
 ```
 
+### Important Notes
+
+1. **Batch Size**: Effective batch size is `batch_size × num_gpus`
+2. **Learning Rate**: Consider scaling LR with batch size
+3. **Data Sharding**: Each GPU processes different samples
+
+---
+
 ## Profiling and Video Recording
 
-Enable the profiler and record a video of the loss curve.
+Enable profiling and record training videos.
 
 ```python
 config = TrainingConfig(
@@ -284,26 +360,37 @@ config = TrainingConfig(
         "schedule": {"wait": 1, "warmup": 1, "active": 2},
         "trace_path": "./profiler_trace"
     },
-    save_video=["loss"],          # record loss over time
-    realtime=False,               # disable live window (optional)
+    save_video=["loss"],
+    realtime=False,
 )
 
 model = nn.Linear(20, 5)
 trainer = Trainer(model, config)
 trainer.train()
-# After training, a video file `loss.mp4` will be created (if ffmpeg is installed).
 ```
+
+### Understanding Profiler Output
+
+The profiler generates trace files viewable in Chrome at `chrome://tracing`.
+
+### Video Recording Requirements
+
+- Requires `ffmpeg` installed
+- Videos saved as MP4 format
+- Shows metric evolution over time
+
+---
 
 ## Using a HuggingFace Dataset
 
-Load the IMDB dataset from Hugging Face and train a simple text classifier.
+Load the IMDB dataset and train a text classifier.
 
 ```python
 from datasets import load_dataset
 from arch_eval import Trainer, TrainingConfig
+import torch
 import torch.nn as nn
 
-# Load dataset
 dataset = load_dataset("imdb")
 
 class TextClassifier(nn.Module):
@@ -313,14 +400,22 @@ class TextClassifier(nn.Module):
         self.fc = nn.Linear(embed_dim, num_classes)
 
     def forward(self, input_ids):
-        # input_ids: (batch, seq_len)
-        emb = self.embedding(input_ids).mean(dim=1)  # average pooling
+        emb = self.embedding(input_ids).mean(dim=1)
         return self.fc(emb)
 
+# Simple tokenization for demo
+def simple_tokenize(text, max_length=128):
+    words = text.lower().split()
+    tokens = [hash(word) % 10000 for word in words[:max_length]]
+    return tokens + [0] * (max_length - len(tokens))
+
+# Prepare subset
+input_ids = torch.tensor([simple_tokenize(item['text']) for item in dataset['train'][:1000]])
+labels = torch.tensor([item['label'] for item in dataset['train'][:1000]])
+
 config = TrainingConfig(
-    dataset=dataset["train"],          # pass the dataset object
-    dataset_streaming=False,           # set to True for IterableDataset
-    training_args={"batch_size": 16, "num_epochs": 1},
+    dataset=(input_ids, labels),
+    training_args={"batch_size": 16, "num_epochs": 3},
     task="classification",
 )
 
@@ -328,12 +423,19 @@ model = TextClassifier()
 trainer = Trainer(model, config)
 trainer.train()
 ```
-_(Note: This is a simplified example; real text classification requires proper tokenization and possibly a collate function.)_
 
+### Note on Production Usage
+
+For real applications:
+1. Use proper tokenization (e.g., from transformers library)
+2. Consider pre-trained models
+3. Use streaming for large datasets
+
+---
 
 ## Custom Callback – Logging to File
 
-Create a callback that writes metrics to a CSV file.
+Create a callback that writes metrics to CSV.
 
 ```python
 import csv
@@ -342,43 +444,108 @@ from arch_eval import Callback
 class CSVLogger(Callback):
     def __init__(self, filename="log.csv"):
         self.filename = filename
-        self.file = open(filename, "w", newline="")
+        self.file = None
         self.writer = None
-
-    def on_log(self, trainer, metrics, step):
+    
+    def on_train_start(self, trainer):
+        self.file = open(self.filename, "w", newline="")
+    
+    def on_epoch_end(self, trainer, epoch, metrics):
         if self.writer is None:
-            self.writer = csv.DictWriter(self.file, fieldnames=["step"] + list(metrics.keys()))
+            self.writer = csv.DictWriter(
+                self.file, 
+                fieldnames=["epoch"] + list(metrics.keys())
+            )
             self.writer.writeheader()
-        row = {"step": step, **metrics}
+        row = {"epoch": epoch, **metrics}
         self.writer.writerow(row)
         self.file.flush()
-
+    
     def on_train_end(self, trainer):
-        self.file.close()
+        if self.file:
+            self.file.close()
 
-# Use it
 config = TrainingConfig(
-    ...,
+    dataset="synthetic classification",
+    dataset_params={"n_samples": 500, "n_features": 20, "n_classes": 5},
+    training_args={"num_epochs": 10, "batch_size": 32},
+    task="classification",
     callbacks=[CSVLogger("training_log.csv")]
 )
 ```
 
+### Callback Lifecycle Methods
+
+Available methods to override:
+- `on_train_start(trainer)` - Before training begins
+- `on_epoch_start(trainer, epoch)` - At start of each epoch
+- `on_batch_end(trainer, batch_idx, loss)` - After each batch
+- `on_epoch_end(trainer, epoch, metrics)` - After each epoch
+- `on_train_end(trainer)` - After training completes
+
+---
+
 ## Using the Plugin System
 
-Create a simple plugin that prints a message at the start of each epoch.
+Plugins extend arch_eval functionality globally.
 
-**File: `my_plugin.py`** (place it in your Python path)
+### Step 1: Create Plugin File
 
 ```python
+# my_plugin.py
 from arch_eval.plugins import hook
 
 @hook("on_epoch_start")
 def epoch_start(trainer, epoch):
     print(f"Starting epoch {epoch}!")
+
+@hook("on_train_end")
+def training_end(trainer):
+    print("Training completed!")
 ```
 
-Now run any training script; the plugin will be discovered automatically and the hook will execute.
+### Step 2: Discover and Use Plugins
+
+```python
+from arch_eval import Trainer, TrainingConfig, discover_plugins
+
+discover_plugins(["./"])  # Scan current directory
+
+config = TrainingConfig(
+    dataset="synthetic classification",
+    dataset_params={"n_samples": 500, "n_features": 20, "n_classes": 5},
+    training_args={"num_epochs": 5, "batch_size": 32},
+    task="classification",
+)
+
+model = nn.Linear(20, 5)
+trainer = Trainer(model, config)
+trainer.train()
+```
+
+### Available Hook Points
+
+- `on_train_start` - Before training loop
+- `on_train_end` - After training loop
+- `on_epoch_start/end` - At epoch boundaries
+- `on_batch_start/end` - At batch boundaries
+- `on_log` - When metrics are logged
+- `on_exception` - When an error occurs
 
 ---
 
-_**These examples cover most of the library’s functionality. For further details, refer to the [Guide](guide.md) and [API Reference](api.md).**_
+## Summary
+
+These examples cover the main features of arch_eval:
+
+1. **Basic Training**: Quick setup for single model training
+2. **Benchmarking**: Compare multiple architectures
+3. **Hyperparameter Search**: Optimize parameters
+4. **Callbacks**: Customize training behavior
+5. **Custom Data**: Use your own datasets
+6. **Distributed Training**: Scale to multiple GPUs
+7. **Profiling**: Analyze performance
+8. **External Datasets**: Integrate with Hugging Face
+9. **Custom Extensions**: Create callbacks and plugins
+
+For more details, refer to the [User Guide](guide.md) and [API Reference](api.md).

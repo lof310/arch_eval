@@ -657,4 +657,3 @@ All custom exceptions inherit from `ArchEvalError`:
 - `VisualizationError`
 - `StopTraining` – can be raised by plugins to gracefully stop training.
 - `DistributedError`
-```
