@@ -6,7 +6,7 @@
 [![GitHub Repo](https://img.shields.io/badge/GitHub-lof310%2Farch__eval-blue)](https://github.com/lof310/arch_eval)
 [![Stars](https://img.shields.io/github/stars/lof310/arch_eval)](#)
 
-High-Level library for Efficient and Fast Architecture Evaluation and Comparison of Machine Learning models. It provides a unified interface for training, benchmarking, and hyperparameter optimization with features like distributed training, mixed precision, and real-time visualization.
+_**High-Level library** for **Efficient and Fast** Architecture Evaluation and **Comparison** of Machine Learning models. It provides a unified interface for **training, benchmarking, and hyperparameter optimization** with features like **distributed training, mixed precision, and real-time visualization.**_
 
 ## Features
 
